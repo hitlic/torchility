@@ -5,3 +5,4 @@ torchility.egg-info
 torchility/__pycache__/
 test
 test.py
+lightning_logs
