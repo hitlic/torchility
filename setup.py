@@ -22,17 +22,7 @@ setuptools.setup(
     keywords='',
     packages=setuptools.find_packages(
         include=['torchility'],
-        exclude=['.git',
-                 '.git/*',
-                 '.gitignore',
-                 '.vscode',
-                 '.vscode/*',
-                 'torchility/__pycache__/*',
-                 'test.py',
-                 'test'
-                 'test/*',
-                 'lightning_logs'
-                 ]),
+        exclude=['__pycache__', '__pycache__/*']),
     py_modules=[],  # any single-file Python modules that aren’t part of a package
     install_requires=['torch > 1.7', 'pytorch-lightning>1.1'],
     python_requires='>=3.6'
