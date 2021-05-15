@@ -1,10 +1,10 @@
-from torchility import Trainer
 import torch
 from torch import nn
 from torch.nn import functional as F
 from torchvision.datasets import MNIST
 from torchvision import transforms
 from torch.utils.data import DataLoader, random_split
+from torchility import Trainer
 from torchility.callbacks import PrintProgressBar
 
 import warnings
@@ -20,7 +20,7 @@ def accuracy( preds, targets):
 
 
 # 1. --- 数据
-data_dir = './dataset'
+data_dir = './datasets'
 transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
 mnist_full = MNIST(data_dir, train=True, transform=transform, download=True)
 train_ds, val_ds= random_split(mnist_full, [55000, 5000])

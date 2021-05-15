@@ -2,7 +2,7 @@ import abc
 
 
 class MetricBase(abc.ABC):
-    def __init__(self, on_step=None, on_epoch=None, name=None):
+    def __init__(self, on_step=None, on_epoch=True, name=None):
         self.log_step = on_step
         self.log_epoch = on_epoch
         self.name = self.__class__.__name__ if name is None else name

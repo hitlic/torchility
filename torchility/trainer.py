@@ -1,15 +1,14 @@
 from pytorch_lightning import Trainer as PLTrainer
 from pytorch_lightning import LightningDataModule
 import torch
-
-from .tasks import GeneralTask
+from .tasks import GeneralTaskModule
 
 
 class Trainer(PLTrainer):
     def compile(self, model: torch.nn.Module, loss, optimizer,
                 data_module: LightningDataModule = None,
                 log_loss_step=None, log_loss_epoch=True, metrics=None):
-        self.task_module = GeneralTask(model, loss, optimizer, log_loss_step, log_loss_epoch, metrics)
+        self.task_module = GeneralTaskModule(model, loss, optimizer, log_loss_step, log_loss_epoch, metrics)
         self.data_module = data_module
 
     def fit(self, train_dl=None, val_dl=None, epochs=10):

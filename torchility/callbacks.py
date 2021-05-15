@@ -5,14 +5,14 @@ from pytorch_lightning.callbacks import ProgressBarBase
 
 class PrintProgressBar(ProgressBarBase):
     """
-    不使用Progress Bar时输出信息
+    仅输出文本信息的进度条
     """
 
     def __init__(self, brief=False):
         self.train_batch_id = 0
         self.val_batch_id = 0
         self.test_batch_id = 0
-        self.brief = brief    # 输出简短信息
+        self.brief = brief    # 是否以简短形式输出信息
 
     def disable(self):
         self.enable = True
@@ -44,21 +44,19 @@ class PrintProgressBar(ProgressBarBase):
     def get_info(self, stage, trainer):
         info = trainer.progress_bar_dict
         prec = 7 if self.brief else 10
+        info_str = ' | '.join([f'{self._brief(k)}: {str(v)[:prec]}' for k, v in info.items()])
         if stage == 'train':
             stage = 'TR'
             c_batch = self.train_batch_id
             num_batch = trainer.num_training_batches
-            info_str = ' | '.join([f'{self._brief(k)}: {str(v)[:prec]}' for k, v in info.items()])
         elif stage == 'val':
             stage = 'VA'
             c_batch = self.val_batch_id
             num_batch = self._total_val_batches(trainer)
-            info_str = ' | '.join([f'{self._brief(k)}: {str(v)[:prec]}' for k, v in info.items()])
         else:
             stage = 'TE'
             c_batch = self.test_batch_id
             num_batch = sum(trainer.num_test_batches)
-            info_str = ' | '.join([f'{self._brief(k)}: {str(v)[:prec]}' for k, v in info.items()])
         c_epoch = trainer.current_epoch + 1
         max_epoch = trainer.max_epochs
 
