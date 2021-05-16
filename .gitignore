@@ -7,3 +7,4 @@ test.py
 lightning_logs
 __pycache__
 cmds.txt
+.gitignore
