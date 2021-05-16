@@ -11,6 +11,13 @@ A tool for training pytorch deep learning model more simply which is based on Py
 - MNIST
 
 ```python
+from torchility import Trainer
+import torch
+from torch import nn
+from torch.nn import functional as F
+from torchvision.datasets import MNIST
+from torch.utils.data import DataLoader, random_split
+
 # datasets
 mnist_full = MNIST(data_dir, train=True, download=True)
 train_ds, val_ds = random_split(mnist_full, [55000, 5000])
