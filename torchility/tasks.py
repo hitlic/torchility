@@ -12,10 +12,8 @@ class GeneralTaskModule(LightningModule):
         self.on_epoch = log_epoch_loss
         self.metrics = [] if metrics is None else metrics
 
-        # 训练、验证、测试batch中的batch_id, preds和targets，可以callback之中访问
-        self.train_batch_preds_targets = (0, None, None)    # (batch_idx, preds, tagets)
-        self.val_batch_preds_targets = (0, None, None)      # ..
-        self.test_batch_preds_targets = (0, None, None)     # ..
+        # 存放训练、验证、测试过程中的各种消息数据
+        self.messages = dict()
 
     def forward(self, batch_data):                          # 前向计算
         return self.model(batch_data)
@@ -24,21 +22,21 @@ class GeneralTaskModule(LightningModule):
         loss, preds, targets = self.do_forward(batch)
         self.log('train_loss', loss, on_step=self.on_step, on_epoch=self.on_epoch)
         self.do_metric(preds, targets, self.log)
-        self.train_batch_preds_targets = (batch_nb, preds, targets)
+        self.messages['train_batch'] = (batch_nb, preds, targets) # (batch_idx, preds, tagets)
         return loss
 
     def validation_step(self, batch, batch_nb):             # 验证步
         loss, preds, targets = self.do_forward(batch)
         self.log('val_loss', loss, prog_bar=True, on_step=self.on_step, on_epoch=self.on_epoch)
         self.do_metric(preds, targets, self.log)
-        self.val_batch_preds_targets = (batch_nb, preds, targets)
+        self.messages['val_batch'] = (batch_nb, preds, targets) # (batch_idx, preds, tagets)
         return {'val_loss': loss}
 
     def test_step(self, batch, batch_nb):                   # 测试步
         loss, preds, targets = self.do_forward(batch)
         self.log('test_loss', loss, prog_bar=True)
         self.do_metric(preds, targets, self.log)
-        self.test_batch_preds_targets = (batch_nb, preds, targets)
+        self.messages['test_batch'] = (batch_nb, preds, targets) # (batch_idx, preds, tagets)
         return {'test_loss': loss}
 
     def configure_optimizers(self):                         # 优化器

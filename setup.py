@@ -1,4 +1,4 @@
-from torchility import __vsersion__
+from torchility import __version__
 import setuptools
 
 with open("README.md", 'r') as fh:
@@ -6,7 +6,7 @@ with open("README.md", 'r') as fh:
 
 setuptools.setup(
     name="torchility",
-    version=__vsersion__,
+    version=__version__,
     author="hitlic",
     author_email="liuchen.lic@gmail.com",
     license='MIT',
