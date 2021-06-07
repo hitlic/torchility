@@ -54,7 +54,7 @@ class PrintProgressBar(ProgressBarBase):
             c_batch = self.val_batch_id
             num_batch = self._total_val_batches(trainer)
         else:
-            stage = 'TEST '
+            stage = ' TST '
             c_batch = self.test_batch_id
             num_batch = sum(trainer.num_test_batches)
         c_epoch = trainer.current_epoch + 1

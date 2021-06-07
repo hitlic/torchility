@@ -1,3 +1,3 @@
 from .trainer import Trainer
 name = 'torchility'
-__version__ = '0.1.2.1'
+__version__ = '0.1.2.2'
