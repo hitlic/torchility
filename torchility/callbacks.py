@@ -46,15 +46,15 @@ class PrintProgressBar(ProgressBarBase):
         prec = 7 if self.brief else 10
         info_str = ' | '.join([f'{self._brief(k)}: {str(v)[:prec]}' for k, v in info.items()])
         if stage == 'train':
-            stage = 'TR'
+            stage = 'TRAIN'
             c_batch = self.train_batch_id
             num_batch = trainer.num_training_batches
         elif stage == 'val':
-            stage = 'VA'
+            stage = ' VAL '
             c_batch = self.val_batch_id
             num_batch = self._total_val_batches(trainer)
         else:
-            stage = 'TE'
+            stage = 'TEST '
             c_batch = self.test_batch_id
             num_batch = sum(trainer.num_test_batches)
         c_epoch = trainer.current_epoch + 1
