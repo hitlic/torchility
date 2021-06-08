@@ -1,11 +1,10 @@
-from pytorch_lightning import Trainer as PLTrainer
+from .trainer_base import TrainerBase
 from pytorch_lightning import LightningDataModule
 import torch
 from .tasks import GeneralTaskModule
-import inspect
 
 
-class Trainer(PLTrainer):
+class Trainer(TrainerBase):
     def compile(self, model: torch.nn.Module, loss, optimizer, data_module: LightningDataModule = None,
                 log_loss_step=None, log_loss_epoch=True, metrics=None):
         self.task_module = GeneralTaskModule(model, loss, optimizer, log_loss_step, log_loss_epoch, metrics)
@@ -26,22 +25,13 @@ class Trainer(PLTrainer):
         else:
             raise Exception("Dataloader or DataModule is needed!")
 
-    def get_init_params(self):
-        """
-        获取Trainer类的初始化参数及取值
-        """
-        init_signature = inspect.signature(super(Trainer, self).__init__)  # pylint: disable=super-with-arguments
-        args = init_signature.parameters.keys()
-        return {arg: self.__dict__.get(arg) for arg in args if arg in self.__dict__}
-
     def resume_checkpoint(self, ckpt_path):
         """
         从checkpoint恢复trainer，然后可继续训练。
         注意，再次训练时epochs参数包含已训练的epoches。
         """
-        init_params = self.get_init_params()
-        init_params['resume_from_checkpoint'] = ckpt_path
-        ckp_trainer = Trainer(**init_params)
-        ckp_trainer.task_module = self.task_module
-        ckp_trainer.data_module = self.data_module
-        return ckp_trainer
+        self.init_params['resume_from_checkpoint'] = ckpt_path
+        ckpt_trainer = Trainer(**self.init_params)
+        ckpt_trainer.task_module = self.task_module
+        ckpt_trainer.data_module = self.data_module
+        return ckpt_trainer
