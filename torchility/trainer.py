@@ -17,11 +17,11 @@ class Trainer(TrainerBase):
         else:
             super().fit(self.task_module, train_dataloader=train_dl, val_dataloaders=val_dl)
 
-    def test(self, test_dl=None, ckpt_path='best', pl_model=None, verbose=True):
+    def test(self, test_dl=None, ckpt_path='best', pl_module=None, verbose=True):
         if test_dl is not None:
-            super().test(pl_model, test_dataloaders=test_dl, ckpt_path=ckpt_path, verbose=verbose)
+            super().test(pl_module, test_dataloaders=test_dl, ckpt_path=ckpt_path, verbose=verbose)
         elif self.data_module and self.data_module.test_dataloader():
-            super().test(pl_model, datamodule=self.data_module, ckpt_path=ckpt_path, verbose=verbose)
+            super().test(pl_module, datamodule=self.data_module, ckpt_path=ckpt_path, verbose=verbose)
         else:
             raise Exception("Dataloader or DataModule is needed!")
 

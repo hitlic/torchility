@@ -1,40 +1,23 @@
-# torchility
-
-A tool for training pytorch deep learning model more simply which is based on Pytorch-lightning.
-
-## Dependency
-
-- torch>1.7
-- pytorch-lightning>1.3
-- torchmetrics>0.3
-- matplotlib>=3.3
-
-## Usage
-
-- MNIST
-
-```python
-from torchility import Trainer
 import torch
 from torch import nn
 from torch.nn import functional as F
 from torchvision.datasets import MNIST
 from torchvision import transforms
 from torch.utils.data import DataLoader, random_split
+from torchility import Trainer
 
-# datasets
+# 1. --- 数据
 data_dir = './datasets'
 transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
 mnist_full = MNIST(data_dir, train=True, transform=transform, download=True)
 train_ds, val_ds = random_split(mnist_full, [55000, 5000])
 test_ds = MNIST(data_dir, train=False, transform=transform, download=True)
-
-# dataloaders
 train_dl = DataLoader(train_ds, batch_size=32)
 val_dl = DataLoader(val_ds, batch_size=32)
 test_dl = DataLoader(test_ds, batch_size=32)
 
-# pytorch model
+
+# 2. --- 模型
 channels, width, height = (1, 28, 28)
 model = nn.Sequential(
     nn.Flatten(),
@@ -47,16 +30,13 @@ model = nn.Sequential(
     nn.Linear(64, 10)
 )
 
-# optimizer
-opt = torch.optim.Adam(model.parameters(), lr=2e-4)
-# trainer
-trainer = Trainer()
-# compile
-trainer.compile(model, F.cross_entropy, opt)
-# train and validate
-trainer.fit(train_dl, val_dl, 2)
-# test
-trainer.test(test_dl)
-```
 
-- See the `examples` for more examples 
+# 3. --- 优化器
+opt = torch.optim.Adam(model.parameters(), lr=2e-4)
+
+
+# 4. --- 训练
+trainer = Trainer()                           # 训练器
+trainer.compile(model, F.cross_entropy, opt)  # 组装
+trainer.fit(train_dl, val_dl, 2)              # 训练、验证
+trainer.test(test_dl)                         # 测试

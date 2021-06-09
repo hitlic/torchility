@@ -1,5 +1,4 @@
 from sys import stdout
-from pytorch_lightning.callbacks.base import Callback
 from pytorch_lightning.callbacks import ProgressBarBase
 
 

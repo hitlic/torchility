@@ -5,29 +5,18 @@ from torchvision.datasets import MNIST
 from torchvision import transforms
 from torch.utils.data import DataLoader, random_split
 from torchility import Trainer
-from torchility.callbacks import PrintProgressBar
-
-import warnings
-warnings.filterwarnings('ignore')  # 屏蔽警告信息
-
-
-# 自定义指标
-from torchmetrics import Accuracy as Acc
-acc = Acc(num_classes=10)
-def accuracy( preds, targets):
-    preds = preds.argmax(1)
-    return acc(preds, targets)
+from torchility.callbacks import ModelAnalyzer
 
 
 # 1. --- 数据
 data_dir = './datasets'
 transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
 mnist_full = MNIST(data_dir, train=True, transform=transform, download=True)
-train_ds, val_ds= random_split(mnist_full, [55000, 5000])
+train_ds, val_ds,_ = random_split(mnist_full, [5000, 5000, 50000])
 test_ds = MNIST(data_dir, train=False, transform=transform, download=True)
 train_dl = DataLoader(train_ds, batch_size=32)
 val_dl = DataLoader(val_ds, batch_size=32)
-test_dl = DataLoader(val_ds, batch_size=32)
+test_dl = DataLoader(test_ds, batch_size=32)
 
 
 # 2. --- 模型
@@ -49,7 +38,12 @@ opt = torch.optim.Adam(model.parameters(), lr=2e-4)
 
 
 # 4. --- 训练
-trainer = Trainer(callbacks=[PrintProgressBar(True)])             # 训练器，可使用默认进度条
-trainer.compile(model, F.cross_entropy, opt, metrics=[accuracy])  # 组装
-trainer.fit(train_dl, val_dl, 2)                                  # 训练、验证
-trainer.test(test_dl)                                             # 测试
+backward_analyzer = ModelAnalyzer('backward')                       # 对各层反向梯度进行分析
+forward_analyzer = ModelAnalyzer('forward')                         # 对各层前向输出进行分析
+trainer = Trainer(callbacks=[backward_analyzer, forward_analyzer])  # 训练器
+trainer.compile(model, F.cross_entropy, opt)                        # 组装
+trainer.fit(train_dl, epochs=2)                                     # 训练、验证
+
+
+# 5. --- 显示分析结果图像
+# 在命令行中运行 tensorboard --logdir=./lightning_logs，通过浏览器查看

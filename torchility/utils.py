@@ -1,6 +1,8 @@
 from matplotlib import pyplot as plt
 import numpy as np
 import itertools
+from typing import Iterable
+
 
 def rename(newname):
     def decorator(f):
@@ -8,15 +10,28 @@ def rename(newname):
         return f
     return decorator
 
+
+def listify(obj):
+    if obj is None:
+        return []
+    if isinstance(obj, list):
+        return obj
+    if isinstance(obj, str):
+        return [obj]
+    if isinstance(obj, Iterable):
+        return list(obj)
+    return [obj]
+
+
 def plot_confusion(c_matrix, class_num, class_names=None,
-                   normalize=False, norm_dec=2, cmap='Blues', info=''):
+                   normalized=False, norm_dec=2, cmap='Blues', info=''):
     """
     画出混淆矩阵。
     Args:
         c_matrix: 混淆矩阵
         class_num: 类别数量
         class_names: 各类名称，可选参数
-        normalize: 是否标准化，显示数字还是比例
+        normalized: c_matrix是否经过标准化
         norm_dec: 标准化保留小数点位数
         cmap: 配色方案
         info: 显示在图像标题中的其他信息
@@ -24,8 +39,8 @@ def plot_confusion(c_matrix, class_num, class_names=None,
     title = 'Confusion matrix'
 
     data_size = c_matrix.sum()
-    if normalize:
-        c_matrix = c_matrix.astype('float') / c_matrix.sum(axis=1)[:, np.newaxis]
+    if not normalized:
+        c_matrix = c_matrix.astype('int')
 
     fig = plt.figure()
 
@@ -38,7 +53,7 @@ def plot_confusion(c_matrix, class_num, class_names=None,
 
     thresh = c_matrix.max() / 2.
     for i, j in itertools.product(range(c_matrix.shape[0]), range(c_matrix.shape[1])):
-        coeff = f'{c_matrix[i, j]:.{norm_dec}f}' if normalize else f'{c_matrix[i, j]}'
+        coeff = f'{c_matrix[i, j]:.{norm_dec}f}' if normalized else f'{c_matrix[i, j]}'
         plt.text(j, i, coeff, horizontalalignment="center", verticalalignment="center",
                  color="white" if c_matrix[i, j] > thresh else "black")
 
@@ -51,4 +66,3 @@ def plot_confusion(c_matrix, class_num, class_names=None,
     # plt.tight_layout()
     fig.subplots_adjust(bottom=0.15)
     return fig
-
