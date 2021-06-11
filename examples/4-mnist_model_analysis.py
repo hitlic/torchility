@@ -1,3 +1,5 @@
+import sys
+sys.path.append('..')
 import torch
 from torch import nn
 from torch.nn import functional as F
@@ -10,6 +12,8 @@ from torchility.callbacks import ModelAnalyzer
 
 # 1. --- 数据
 data_dir = './datasets'
+data_dir = '/Users/liuchen/Documents/LicSync/_Work/BigData-2021/dataset'
+
 transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
 mnist_full = MNIST(data_dir, train=True, transform=transform, download=True)
 train_ds, val_ds,_ = random_split(mnist_full, [5000, 5000, 50000])
@@ -46,4 +50,4 @@ trainer.fit(train_dl, epochs=2)                                     # 训练、�
 
 
 # 5. --- 显示分析结果图像
-# 在命令行中运行 tensorboard --logdir=./lightning_logs，通过浏览器查看
+# 在命令行中运行 tensorboard --logdir=./logs，通过浏览器查看

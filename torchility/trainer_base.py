@@ -9,7 +9,7 @@ from pytorch_lightning.plugins import Plugin
 from pytorch_lightning.plugins.environments import ClusterEnvironment
 from pytorch_lightning.profiler import BaseProfiler
 from pytorch_lightning.trainer.connectors.env_vars_connector import _defaults_from_env_vars
-
+from pytorch_lightning.loggers import TensorBoardLogger
 
 class TrainerBase(PLTrainer):
     @_defaults_from_env_vars
@@ -71,6 +71,8 @@ class TrainerBase(PLTrainer):
         multiple_trainloader_mode: str = 'max_size_cycle',
         stochastic_weight_avg: bool = False
     ):
+        if logger==True:
+            logger = TensorBoardLogger('logs', name=None, log_graph=True, default_hp_metric=False)
         super().__init__(logger=logger, checkpoint_callback=checkpoint_callback, callbacks=callbacks, default_root_dir=default_root_dir, gradient_clip_val=gradient_clip_val, gradient_clip_algorithm=gradient_clip_algorithm, process_position=process_position, num_nodes=num_nodes, num_processes=num_processes, gpus=gpus, auto_select_gpus=auto_select_gpus, tpu_cores=tpu_cores, log_gpu_memory=log_gpu_memory, progress_bar_refresh_rate=progress_bar_refresh_rate, overfit_batches=overfit_batches, track_grad_norm=track_grad_norm, check_val_every_n_epoch=check_val_every_n_epoch, fast_dev_run=fast_dev_run, accumulate_grad_batches=accumulate_grad_batches, max_epochs=max_epochs, min_epochs=min_epochs, max_steps=max_steps, min_steps=min_steps, max_time=max_time, limit_train_batches=limit_train_batches, limit_val_batches=limit_val_batches, limit_test_batches=limit_test_batches, limit_predict_batches=limit_predict_batches, val_check_interval=val_check_interval,
                          flush_logs_every_n_steps=flush_logs_every_n_steps, log_every_n_steps=log_every_n_steps, accelerator=accelerator, sync_batchnorm=sync_batchnorm, precision=precision, weights_summary=weights_summary, weights_save_path=weights_save_path, num_sanity_val_steps=num_sanity_val_steps, truncated_bptt_steps=truncated_bptt_steps, resume_from_checkpoint=resume_from_checkpoint, profiler=profiler, benchmark=benchmark, deterministic=deterministic, reload_dataloaders_every_epoch=reload_dataloaders_every_epoch, auto_lr_find=auto_lr_find, replace_sampler_ddp=replace_sampler_ddp, terminate_on_nan=terminate_on_nan, auto_scale_batch_size=auto_scale_batch_size, prepare_data_per_node=prepare_data_per_node, plugins=plugins, amp_backend=amp_backend, amp_level=amp_level, distributed_backend=distributed_backend, move_metrics_to_cpu=move_metrics_to_cpu, multiple_trainloader_mode=multiple_trainloader_mode, stochastic_weight_avg=stochastic_weight_avg)
         self.init_params = dict(logger=logger, checkpoint_callback=checkpoint_callback, callbacks=callbacks, default_root_dir=default_root_dir, gradient_clip_val=gradient_clip_val, gradient_clip_algorithm=gradient_clip_algorithm, process_position=process_position, num_nodes=num_nodes, num_processes=num_processes, gpus=gpus, auto_select_gpus=auto_select_gpus, tpu_cores=tpu_cores, log_gpu_memory=log_gpu_memory, progress_bar_refresh_rate=progress_bar_refresh_rate, overfit_batches=overfit_batches, track_grad_norm=track_grad_norm, check_val_every_n_epoch=check_val_every_n_epoch, fast_dev_run=fast_dev_run, accumulate_grad_batches=accumulate_grad_batches, max_epochs=max_epochs, min_epochs=min_epochs, max_steps=max_steps, min_steps=min_steps, max_time=max_time, limit_train_batches=limit_train_batches, limit_val_batches=limit_val_batches, limit_test_batches=limit_test_batches, limit_predict_batches=limit_predict_batches, val_check_interval=val_check_interval,
