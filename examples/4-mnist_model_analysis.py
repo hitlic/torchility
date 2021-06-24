@@ -12,7 +12,6 @@ from torchility.callbacks import ModelAnalyzer
 
 # 1. --- 数据
 data_dir = './datasets'
-data_dir = '/Users/liuchen/Documents/LicSync/_Work/BigData-2021/dataset'
 
 transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
 mnist_full = MNIST(data_dir, train=True, transform=transform, download=True)
