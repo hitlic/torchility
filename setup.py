@@ -21,9 +21,7 @@ setuptools.setup(
         "Operating System :: OS Independent",
     ],
     keywords='',
-    packages=setuptools.find_packages(
-        # include=['torchility', 'torchility/callbacks'],
-        exclude=['__pycache__', '__pycache__/*']),
+    packages=setuptools.find_packages(exclude=['__pycache__', '__pycache__/*']),
     py_modules=[],  # any single-file Python modules that aren’t part of a package
     install_requires=['torch>1.7', 'pytorch-lightning>1.3', 'torchmetrics>0.3', 'matplotlib>=3.3'],
     python_requires='>=3.6'

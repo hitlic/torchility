@@ -43,8 +43,8 @@ class GeneralTaskModule(LightningModule):
         return self.opt
 
     def do_forward(self, batch):                            # 前向计算
-        input_feat, targets = batch
-        preds = self(input_feat)
+        input_feat, targets = batch[:-1], batch[-1]  # batch最后一个元素为标签
+        preds = self(*input_feat)
         loss = self.loss_fn(preds, targets)
         return loss, preds, targets
 
