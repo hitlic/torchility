@@ -59,8 +59,8 @@ class ModelAnalyzer(Callback):
         mean_dict = {h.name: h.mean for h in self.hooks}
         std_dict = {h.name: h.std for h in self.hooks}
         logger = pl_module.logger.experiment
-        logger.add_scalars(f'{mode}: mean', mean_dict, global_step=pl_module.global_step)
-        logger.add_scalars(f'{mode}: std', std_dict, global_step=pl_module.global_step)
+        logger.add_scalars(f'{mode}-mean', mean_dict, global_step=pl_module.global_step)
+        logger.add_scalars(f'{mode}-std', std_dict, global_step=pl_module.global_step)
         for h in self.hooks:
             logger.add_histogram(f'{mode}-{h.name}', h.data, global_step=pl_module.global_step)
 
