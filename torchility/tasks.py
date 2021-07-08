@@ -15,8 +15,8 @@ class GeneralTaskModule(LightningModule):
         # 存放训练、验证、测试过程中的各种消息数据
         self.messages = dict()
 
-    def forward(self, batch_data):                          # 前向计算
-        return self.model(batch_data)
+    def forward(self, *batch_data):                         # 前向计算
+        return self.model(*batch_data)
 
     def training_step(self, batch, batch_nb):               # 训练步
         loss, preds, targets = self.do_forward(batch)
