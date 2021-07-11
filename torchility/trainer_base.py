@@ -51,7 +51,7 @@ class TrainerBase(PLTrainer):
         precision: int = 32,
         weights_summary: Optional[str] = 'top',
         weights_save_path: Optional[str] = None,
-        num_sanity_val_steps: int = 2,
+        num_sanity_val_steps: int = 0,                          # 训练开始前预验证的step数 
         truncated_bptt_steps: Optional[int] = None,
         resume_from_checkpoint: Optional[Union[Path, str]] = None,
         profiler: Optional[Union[BaseProfiler, str]] = None,

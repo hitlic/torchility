@@ -42,8 +42,10 @@ class PrintProgressBar(ProgressBarBase):
 
     def get_info(self, stage, trainer):
         info = trainer.progress_bar_dict
-        prec = 7 if self.brief else 10
-        info_str = ' | '.join([f'{self._brief(k)}: {str(v)[:prec]}' for k, v in info.items()])
+        if self.brief:
+            info_str = ' | '.join([f'{self._brief(k):>12}: {str(v)[:4]:4}' for k, v in info.items() if self._check_info(stage, k)])
+        else:
+            info_str = ' | '.join([f'{self._brief(k):>12}: {str(v)[:6]:6}' for k, v in info.items() if self._check_info(stage, k)])
         if stage == 'train':
             stage = 'TRAIN'
             c_batch = self.train_batch_id
@@ -73,6 +75,14 @@ class PrintProgressBar(ProgressBarBase):
             if len(k_items) == 1:
                 return k_items[0][:3]
             x = k_items[0][:3] + '_' + '_'.join([item[0] for item in k_items[1:]])
-            return x
+            return x.replace('step', 's').replace('epoch', 'e')
         else:
-            return k
+            return k.replace('step', 's').replace('epoch', 'e')
+
+    def _check_info(self, stage, info_key):
+        if info_key == 'loss' and stage == 'train':
+            return True
+        if info_key.split('_')[0] != stage:
+            return False
+        else:
+            return True

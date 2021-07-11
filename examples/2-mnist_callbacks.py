@@ -6,8 +6,12 @@ from torchvision import transforms
 from torch.utils.data import DataLoader, random_split
 from torchility import Trainer
 from torchility.callbacks import PrintProgressBar
+from torchility.utils import rename
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 import time
+import warnings
+warnings.simplefilter("ignore")
+
 
 # 1. --- 数据
 data_dir = './datasets'
@@ -40,6 +44,7 @@ opt = torch.optim.Adam(model.parameters(), lr=2e-4)
 
 # 4. --- 训练
 # 自定义指标
+@rename('acc')
 def accuracy(preds, targets):
     preds = preds.argmax(1)
     return (preds == targets).float().mean()

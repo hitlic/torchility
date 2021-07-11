@@ -6,6 +6,8 @@ from torchvision import transforms
 from torch.utils.data import DataLoader, random_split
 from torchility import Trainer
 from torchility.callbacks import ModelAnalyzer
+import warnings
+warnings.simplefilter("ignore")
 
 
 # 1. --- 数据

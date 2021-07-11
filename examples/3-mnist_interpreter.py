@@ -7,6 +7,9 @@ from torch.utils.data import DataLoader, random_split
 from torchility import Trainer
 from torchility.callbacks import ClassifierInterpreter
 import matplotlib.pyplot as plt
+import warnings
+warnings.simplefilter("ignore")
+
 
 # 1. --- 数据
 data_dir = './datasets'

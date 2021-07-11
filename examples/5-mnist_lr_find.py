@@ -7,6 +7,8 @@ from torch.utils.data import DataLoader, random_split
 from torchility import Trainer
 from torchility.callbacks import LRFinder
 import matplotlib.pyplot as plt
+import warnings
+warnings.simplefilter("ignore")
 
 
 # 1. --- 数据

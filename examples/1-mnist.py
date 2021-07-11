@@ -5,6 +5,8 @@ from torchvision.datasets import MNIST
 from torchvision import transforms
 from torch.utils.data import DataLoader, random_split
 from torchility import Trainer
+import warnings
+warnings.simplefilter("ignore")
 
 # 1. --- 数据
 data_dir = './datasets'
@@ -36,7 +38,8 @@ opt = torch.optim.Adam(model.parameters(), lr=2e-4)
 
 
 # 4. --- 训练
-trainer = Trainer()                           # 训练器
-trainer.compile(model, F.cross_entropy, opt)  # 组装
-trainer.fit(train_dl, val_dl, 2)              # 训练、验证
-trainer.test(test_dl)                         # 测试
+trainer = Trainer()                                                # 训练器
+# trainer = Trainer(gpus=1 if torch.cuda.is_available() else None) # 使用GPU
+trainer.compile(model, F.cross_entropy, opt)                       # 组装
+trainer.fit(train_dl, val_dl, 2)                                   # 训练、验证
+trainer.test(test_dl)                                              # 测试
