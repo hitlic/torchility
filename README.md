@@ -2,9 +2,11 @@
 
 A tool for training pytorch deep learning model more simply which is based on Pytorch-lightning.
 
-## Dependency
+## Install
 
-- torch>1.7
+- `pip install torchility`
+### Dependency
+- pytorch>1.7
 - pytorch-lightning>1.3
 - torchmetrics>0.3
 - matplotlib>=3.3
