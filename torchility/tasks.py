@@ -3,14 +3,14 @@ from .metrics import MetricBase
 
 
 class GeneralTaskModule(LightningModule):
-    def __init__(self, model, loss, optimizer, log_step_loss=True, log_epoch_loss=None, metrics=None):
+    def __init__(self, model, loss, optimizer, metrics=None, log_step_loss=True, log_epoch_loss=None):
         super().__init__()
         self.model = model
         self.loss_fn = loss
         self.opt = optimizer
+        self.metrics = [] if metrics is None else metrics
         self.on_step = log_step_loss
         self.on_epoch = log_epoch_loss
-        self.metrics = [] if metrics is None else metrics
 
         # 存放训练、验证、测试过程中的各种消息数据
         self.messages = dict()
@@ -22,21 +22,21 @@ class GeneralTaskModule(LightningModule):
         loss, preds, targets = self.do_forward(batch)
         self.log('train_loss', loss.detach(), on_step=self.on_step, on_epoch=self.on_epoch)
         self.do_metric(preds, targets, 'train', self.log)
-        self.messages['train_batch'] = (batch_nb, preds, targets) # (batch_idx, preds, tagets)
+        self.messages['train_batch'] = (batch_nb, preds, targets)  # (batch_idx, preds, tagets)
         return loss
 
     def validation_step(self, batch, batch_nb):             # 验证步
         loss, preds, targets = self.do_forward(batch)
         self.log('val_loss', loss.detach(), prog_bar=True, on_step=self.on_step, on_epoch=self.on_epoch)
         self.do_metric(preds, targets, 'val', self.log)
-        self.messages['val_batch'] = (batch_nb, preds, targets) # (batch_idx, preds, tagets)
+        self.messages['val_batch'] = (batch_nb, preds, targets)  # (batch_idx, preds, tagets)
         return {'val_loss': loss}
 
     def test_step(self, batch, batch_nb):                   # 测试步
         loss, preds, targets = self.do_forward(batch)
         self.log('test_loss', loss.detach(), prog_bar=True)
         self.do_metric(preds, targets, 'test', self.log)
-        self.messages['test_batch'] = (batch_nb, preds, targets) # (batch_idx, preds, tagets)
+        self.messages['test_batch'] = (batch_nb, preds, targets)  # (batch_idx, preds, tagets)
         return {'test_loss': loss}
 
     def configure_optimizers(self):                         # 优化器

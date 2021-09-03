@@ -41,17 +41,16 @@ opt = torch.optim.Adam(model.parameters(), lr=2e-4)
 
 
 # 4. --- 训练
-interpreter = ClassifierInterpreter(class_num=10, stage='test') # 针对分类模型测试数据的解释器
-trainer = Trainer(callbacks=[interpreter])                      # 训练器
-trainer.compile(model, F.cross_entropy, opt)                    # 组装
-trainer.fit(train_dl, val_dl, epochs=2)                         # 训练、验证
-trainer.test(test_dl)                                           # 测试
+interpreter = ClassifierInterpreter(class_num=10, stage='test')          # 针对分类模型测试数据的解释器
+trainer = Trainer(model, F.cross_entropy, opt, callbacks=[interpreter])  # 训练器
+trainer.fit(train_dl, val_dl, epochs=2)                                  # 训练、验证
+trainer.test(test_dl)                                                    # 测试
 
 
 # 5. --- 解释
 # 返回测试集中损失最大的10个样本的信息
 metric = nn.CrossEntropyLoss(reduction='none') # 要计算每个样本的指标，因此不能reduction（即求和、平均等操作）
-tops = trainer.interpreter.top_samples(metric, k=10)            # 返回metric值最大的10个样本的信息
+tops = trainer.interpreter.top_samples(metric, k=10)                     # 返回metric值最大的10个样本的信息
 print(tops)
-trainer.interpreter.plot_confusion()                            # 绘制混淆矩阵
+trainer.interpreter.plot_confusion()                                     # 绘制混淆矩阵
 plt.show()

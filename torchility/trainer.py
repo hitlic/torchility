@@ -1,27 +1,22 @@
 from .trainer_base import TrainerBase
-from pytorch_lightning import LightningDataModule
-import torch
-from .tasks import GeneralTaskModule
 
 
 class Trainer(TrainerBase):
-    def compile(self, model: torch.nn.Module, loss, optimizer, data_module: LightningDataModule = None,
-                log_loss_step=None, log_loss_epoch=True, metrics=None):
-        self.task_module = GeneralTaskModule(model, loss, optimizer, log_loss_step, log_loss_epoch, metrics)
-        self.data_module = data_module
+    def fit(self, train_dl=None, val_dl=None, epochs=None):
+        if epochs is not None:
+            current_epoch = self.fit_loop.current_epoch
+            self.fit_loop.max_epochs = epochs + current_epoch
 
-    def fit(self, train_dl=None, val_dl=None, epochs=10):
-        self.fit_loop.max_epochs = epochs
-        if self.data_module:
-            super().fit(self.task_module, datamodule=self.data_module)
+        if self.datamodule:
+            super().fit(self.task_module, datamodule=self.datamodule)
         else:
             super().fit(self.task_module, train_dataloaders=train_dl, val_dataloaders=val_dl)
 
     def test(self, test_dl=None, ckpt_path='best', pl_module=None, verbose=True):
         if test_dl is not None:
             super().test(pl_module, test_dataloaders=test_dl, ckpt_path=ckpt_path, verbose=verbose)
-        elif self.data_module and self.data_module.test_dataloader():
-            super().test(pl_module, datamodule=self.data_module, ckpt_path=ckpt_path, verbose=verbose)
+        elif self.datamodule and self.datamodule.test_dataloader():
+            super().test(pl_module, datamodule=self.datamodule, ckpt_path=ckpt_path, verbose=verbose)
         else:
             raise Exception("Dataloader or DataModule is needed!")
 
@@ -33,5 +28,5 @@ class Trainer(TrainerBase):
         self.init_params['resume_from_checkpoint'] = ckpt_path
         ckpt_trainer = Trainer(**self.init_params)
         ckpt_trainer.task_module = self.task_module
-        ckpt_trainer.data_module = self.data_module
+        ckpt_trainer.datamodule = self.datamodule
         return ckpt_trainer

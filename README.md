@@ -7,8 +7,8 @@ A tool for training pytorch deep learning model more simply which is based on Py
 - `pip install torchility`
 ### Dependency
 - pytorch>1.7
-- pytorch-lightning>1.3
-- torchmetrics>0.3
+- pytorch-lightning>1.4
+- torchmetrics>0.5
 - matplotlib>=3.3
 
 ## Usage
@@ -52,9 +52,7 @@ model = nn.Sequential(
 # optimizer
 opt = torch.optim.Adam(model.parameters(), lr=2e-4)
 # trainer
-trainer = Trainer()
-# compile
-trainer.compile(model, F.cross_entropy, opt)
+trainer = Trainer(model, F.cross_entropy, opt)
 # train and validate
 trainer.fit(train_dl, val_dl, 2)
 # test

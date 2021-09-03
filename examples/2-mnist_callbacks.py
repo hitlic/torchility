@@ -58,9 +58,8 @@ chkpoint_cbk = ModelCheckpoint(monitor='val_loss', dirpath='./checkpoints/',
 early_stop_cbk = EarlyStopping(monitor='val_loss', min_delta=0.00, patience=3, verbose=False, mode='min')
 
 # 训练器，使用新的进度条，以及其他callbacks
-trainer = Trainer(callbacks=[PrintProgressBar(),
-                             chkpoint_cbk, early_stop_cbk])
-trainer.compile(model, F.cross_entropy, opt, metrics=[accuracy])       # 组装，输出新增指标信息
+trainer = Trainer(model, F.cross_entropy, opt, metrics=[accuracy],
+                  callbacks=[PrintProgressBar(), chkpoint_cbk, early_stop_cbk])
 trainer.fit(train_dl, val_dl, 2)                                       # 训练、验证
 trainer.test(test_dl)                                                  # 测试
 

@@ -1,5 +1,6 @@
 from datetime import timedelta
 from pathlib import Path
+import torch
 from typing import Any, Dict, Iterable, List, Optional, Union
 from pytorch_lightning import Trainer as PLTrainer
 from pytorch_lightning.accelerators import Accelerator
@@ -10,11 +11,21 @@ from pytorch_lightning.plugins.environments import ClusterEnvironment
 from pytorch_lightning.profiler import BaseProfiler
 from pytorch_lightning.trainer.connectors.env_vars_connector import _defaults_from_env_vars
 from pytorch_lightning.loggers import TensorBoardLogger
-
+from pytorch_lightning import LightningDataModule
+from pytorch_lightning import LightningModule
+from .tasks import GeneralTaskModule
+from typing import Callable
+from .metrics import MetricBase
 class TrainerBase(PLTrainer):
     @_defaults_from_env_vars
     def __init__(
         self,
+        model:torch.nn.Module=None,                # pytorch Module                                     -- LIC
+        loss:Callable=None,                        # loss function                                      -- LIC
+        optimizer:torch.optim.Optimizer=None,      # pytorch optimizer                                  -- LIC
+        metrics:Union[Callable, MetricBase]=None,  # instance of MetricBase or other callable instance  -- LIC
+        task_module: LightningModule=None,         # task_model                                         -- LIC
+        datamodule: LightningDataModule = None,    # PL data module                                     -- LIC
         logger: Union[LightningLoggerBase, Iterable[LightningLoggerBase], bool] = True,
         checkpoint_callback: bool = True,
         callbacks: Optional[Union[List[Callback], Callback]] = None,
@@ -72,11 +83,29 @@ class TrainerBase(PLTrainer):
         distributed_backend: Optional[str] = None,
         move_metrics_to_cpu: bool = False,
         multiple_trainloader_mode: str = 'max_size_cycle',
-        stochastic_weight_avg: bool = False
+        stochastic_weight_avg: bool = False,
+        **task_kwargs           # parameters of the task_module                                         -- LIC
     ):
-        if logger==True:
-            logger = TensorBoardLogger('logs', name=None, log_graph=True, default_hp_metric=False)
+        #   *************************************
+        #   *  Trainer Configuration   --- LIC  *
+        #   *************************************
+        if logger == True:
+            log_dir = 'logs' if default_root_dir is None else default_root_dir
+            logger = TensorBoardLogger(log_dir, name=None, log_graph=True, default_hp_metric=False)
+        if task_kwargs.get('log_step_loss', None) is None:
+            task_kwargs['log_step_loss'] = False
+        if task_kwargs.get('log_epoch_loss', None) is None:
+            task_kwargs['log_epoch_loss'] = True
 
+        if task_module is None:
+            self.task_module = GeneralTaskModule(model, loss, optimizer, metrics, **task_kwargs)
+        else:
+            self.task_module = task_module
+        self.datamodule = datamodule
+
+        #   *************************************
+        #   *    Trainer Parameters    --- LIC  *
+        #   *************************************
         self.init_params = dict(
             logger=logger,
             checkpoint_callback=checkpoint_callback,
@@ -136,5 +165,5 @@ class TrainerBase(PLTrainer):
             move_metrics_to_cpu=move_metrics_to_cpu,
             multiple_trainloader_mode=multiple_trainloader_mode,
             stochastic_weight_avg=stochastic_weight_avg
-            )
+        )
         super().__init__(**self.init_params)
