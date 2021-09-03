@@ -11,11 +11,11 @@ class Trainer(TrainerBase):
         self.data_module = data_module
 
     def fit(self, train_dl=None, val_dl=None, epochs=10):
-        self.max_epochs = epochs
+        self.fit_loop.max_epochs = epochs
         if self.data_module:
             super().fit(self.task_module, datamodule=self.data_module)
         else:
-            super().fit(self.task_module, train_dataloader=train_dl, val_dataloaders=val_dl)
+            super().fit(self.task_module, train_dataloaders=train_dl, val_dataloaders=val_dl)
 
     def test(self, test_dl=None, ckpt_path='best', pl_module=None, verbose=True):
         if test_dl is not None:

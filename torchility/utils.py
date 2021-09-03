@@ -2,6 +2,43 @@ from matplotlib import pyplot as plt
 import numpy as np
 import itertools
 from typing import Iterable
+import torch
+
+class TensorList(list):
+    """
+    list of tensors
+    """
+    @property
+    def device(self):
+        if len(self) > 0:
+            return self[0].device
+        else:
+            return torch.device(type='cpu')
+
+    def to(self, device, **kwargs):
+        return TensorList(t.to(device, **kwargs) for t in self)
+
+    def cpu(self):
+        return TensorList(t.cpu() for t in self)
+
+    def clone(self):
+        return TensorList(t.clone() for t in self)
+
+    def detach(self):
+        return TensorList(t.detach() for t in self)
+
+    @property
+    def data(self):
+        return TensorList(t.data for t in self)
+
+    def float(self):
+        return TensorList(t.float() for t in self)
+
+    def long(self):
+        return TensorList(t.long() for t in self)
+
+    def int(self):
+        return TensorList(t.int() for t in self)
 
 
 def rename(newname):
