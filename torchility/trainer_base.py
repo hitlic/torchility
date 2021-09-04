@@ -58,7 +58,7 @@ class TrainerBase(PLTrainer):
         limit_predict_batches: Union[int, float] = 1.0,
         val_check_interval: Union[int, float] = 1.0,
         flush_logs_every_n_steps: int = 100,
-        log_every_n_steps: int = 50,
+        log_every_n_steps: int = 5,
         accelerator: Optional[Union[str, Accelerator]] = None,
         sync_batchnorm: bool = False,
         precision: int = 32,
@@ -93,7 +93,7 @@ class TrainerBase(PLTrainer):
             log_dir = 'logs' if default_root_dir is None else default_root_dir
             logger = TensorBoardLogger(log_dir, name=None, log_graph=True, default_hp_metric=False)
         if task_kwargs.get('log_step_loss', None) is None:
-            task_kwargs['log_step_loss'] = False
+            task_kwargs['log_step_loss'] = True
         if task_kwargs.get('log_epoch_loss', None) is None:
             task_kwargs['log_epoch_loss'] = True
 
