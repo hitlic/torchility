@@ -4,8 +4,9 @@ from .utils import rename
 import torch.nn.functional as F
 import numpy as np
 
+
 class MetricBase(abc.ABC):
-    def __init__(self, on_step=None, on_epoch=True, name=None):
+    def __init__(self, name=None, on_step=True, on_epoch=True):
         self.log_step = on_step
         self.log_epoch = on_epoch
         self.name = self.__class__.__name__ if name is None else name

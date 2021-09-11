@@ -14,7 +14,7 @@ class Trainer(TrainerBase):
 
     def test(self, test_dl=None, ckpt_path='best', pl_module=None, verbose=True):
         if test_dl is not None:
-            super().test(pl_module, test_dataloaders=test_dl, ckpt_path=ckpt_path, verbose=verbose)
+            super().test(pl_module, dataloaders=test_dl, ckpt_path=ckpt_path, verbose=verbose)
         elif self.datamodule and self.datamodule.test_dataloader():
             super().test(pl_module, datamodule=self.datamodule, ckpt_path=ckpt_path, verbose=verbose)
         else:

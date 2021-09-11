@@ -19,8 +19,14 @@ class PrintProgressBar(ProgressBarBase):
         print(f"{progress} {stage} {info}", end="\r", flush=True)
 
     def on_train_epoch_end(self, trainer, pl_module, outputs):
-        progress, train_stage, train_info = self.get_info(trainer, 'train', 'epoch')
+        _, train_stage, train_info = self.get_info(trainer, 'train', 'epoch')
         _, val_stage, val_info = self.get_info(trainer, 'val', 'epoch')
+
+        c_epoch = trainer.current_epoch + 1
+        max_epoch = trainer.max_epochs
+        train_num_batch = trainer.num_training_batches
+        val_num_batch = self._total_val_batches(trainer)
+        progress = f"E:{c_epoch:>3d}/{max_epoch:<3d} B:{train_num_batch:>4d} {val_num_batch:<4d}"
         print(progress, train_stage, train_info, val_stage, val_info)
 
     def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
