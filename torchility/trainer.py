@@ -1,7 +1,60 @@
-from .trainer_base import TrainerBase
+import torch
+import inspect
+from typing import Callable, Union
+from pytorch_lightning import Trainer as PLTrainer
+from pytorch_lightning import LightningModule
+from pytorch_lightning import LightningDataModule
+from pytorch_lightning.loggers import TensorBoardLogger
+from .metrics import MetricBase
+from .tasks import GeneralTaskModule
 
+def default_args(func):
+    signature = inspect.signature(func)
+    return {
+        k: v.default
+        for k, v in signature.parameters.items()
+        if v.default is not inspect.Parameter.empty
+    }
 
-class Trainer(TrainerBase):
+class Trainer(PLTrainer):
+    def __init__(self, model:torch.nn.Module=None,  # pytorch Module
+        loss:Callable=None,                         # loss function
+        optimizer:torch.optim.Optimizer=None,       # pytorch optimizer
+        metrics:Union[Callable, MetricBase]=None,   # instance of MetricBase or other callable instance
+        task_module: LightningModule=None,          # task_model
+        datamodule: LightningDataModule = None,     # PL data module
+        task_kwargs=dict(),                         # parameters of the task_module
+        **pltrainer_kwargs                          # keyword arguments of pytorch_lightning Trainer
+        ):
+
+        #   *************************************
+        #   *    Task Configuration    --- LIC  *
+        #   *************************************
+        if task_kwargs.get('log_step_loss', None) is None:
+            task_kwargs['log_step_loss'] = True
+        if task_kwargs.get('log_epoch_loss', None) is None:
+            task_kwargs['log_epoch_loss'] = True
+
+        if task_module is None:
+            self.task_module = GeneralTaskModule(model, loss, optimizer, metrics, **task_kwargs)
+        else:
+            self.task_module = task_module
+        self.datamodule = datamodule
+
+        #   *************************************
+        #   *    Trainer Parameters    --- LIC  *
+        #   *************************************
+        self.init_params = default_args(PLTrainer)
+        self.init_params.update(pltrainer_kwargs)  # get default arguments
+        # default logger
+        if self.init_params['logger'] == True:
+            if self.init_params['default_root_dir'] is None:
+                log_dir = 'logs' 
+            else:
+                log_dir = self.init_params['default_root_dir']
+            self.init_params['logger'] = TensorBoardLogger(log_dir, name=None, log_graph=True, default_hp_metric=False)
+        super().__init__(**self.init_params)
+
     def fit(self, train_dl=None, val_dl=None, epochs=None):
         if epochs is not None:
             current_epoch = self.fit_loop.current_epoch
@@ -24,6 +77,10 @@ class Trainer(TrainerBase):
         """
         从checkpoint恢复trainer，然后可继续训练。
         注意，再次训练时epochs参数包含已训练的epoches。
+
+        Note:
+        ``resume_from_checkpoint`` is deprecated in pytorch-lightning v1.5 and will be removed in v1.7.
+        Please pass the path to ``Trainer.fit(..., ckpt_path=...)`` instead.
         """
         self.init_params['resume_from_checkpoint'] = ckpt_path
         ckpt_trainer = Trainer(**self.init_params)

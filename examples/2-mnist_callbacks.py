@@ -53,7 +53,7 @@ def accuracy(preds, targets):
 # 每个epoch保存一次模型的callback
 chkpoint_cbk = ModelCheckpoint(monitor='val_loss', dirpath='./checkpoints/',
                                filename=f'time={int(time.time())}'+'-{epoch:03d}-{val_loss_epoch:.4f}',
-                               save_top_k=1, mode='min', period=1)
+                               save_top_k=1, mode='min', every_n_epochs=1)
 # 早停callback
 early_stop_cbk = EarlyStopping(monitor='val_loss', min_delta=0.00, patience=3, verbose=False, mode='min')
 
@@ -62,5 +62,3 @@ trainer = Trainer(model, F.cross_entropy, opt, metrics=[accuracy],
                   callbacks=[PrintProgressBar(), chkpoint_cbk, early_stop_cbk])
 trainer.fit(train_dl, val_dl, 2)                                       # 训练、验证
 trainer.test(test_dl)                                                  # 测试
-
-new_trainer = trainer.resume_checkpoint(chkpoint_cbk.best_model_path)  # 加载最优模型

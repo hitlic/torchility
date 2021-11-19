@@ -18,7 +18,7 @@ class PrintProgressBar(ProgressBarBase):
         progress, stage, info = self.get_info(trainer, 'train', 'step')
         print(f"{progress} {stage} {info}", end="\r", flush=True)
 
-    def on_train_epoch_end(self, trainer, pl_module, outputs):
+    def on_train_epoch_end(self, trainer, pl_module):
         _, train_stage, train_info = self.get_info(trainer, 'train', 'epoch')
         _, val_stage, val_info = self.get_info(trainer, 'val', 'epoch')
 
