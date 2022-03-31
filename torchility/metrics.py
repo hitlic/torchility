@@ -21,7 +21,6 @@ class MetricBase(abc.ABC):
 
 # --- metrics
 
-
 @rename('acc')
 def accuracy(out, yb):
     return (torch.argmax(out, dim=1) == yb).float().mean()

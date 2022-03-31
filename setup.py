@@ -23,6 +23,6 @@ setuptools.setup(
     keywords='',
     packages=setuptools.find_packages(exclude=['__pycache__', '__pycache__/*']),
     py_modules=[],  # any single-file Python modules that aren’t part of a package
-    install_requires=['torch>1.7', 'pytorch-lightning>=1.5', 'torchmetrics>0.5', 'matplotlib>=3.3'],
+    install_requires=['torch>=1.8', 'pytorch-lightning>=1.6', 'torchmetrics>=0.6', 'matplotlib>=3.3'],
     python_requires='>=3.8'
 )

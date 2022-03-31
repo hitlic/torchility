@@ -6,9 +6,9 @@ A tool for training pytorch deep learning model more simply which is based on Py
 
 - `pip install torchility`
 ### Dependency
-- pytorch>1.7
-- pytorch-lightning>=1.5
-- torchmetrics>0.6
+- pytorch>=1.8
+- pytorch-lightning>=1.6
+- torchmetrics>=0.6
 - matplotlib>=3.3
 
 ## Usage
@@ -23,6 +23,8 @@ from torch.nn import functional as F
 from torchvision.datasets import MNIST
 from torchvision import transforms
 from torch.utils.data import DataLoader, random_split
+import warnings
+warnings.simplefilter("ignore")  # ignore annoying warnings
 
 # datasets
 data_dir = './datasets'
@@ -52,9 +54,9 @@ model = nn.Sequential(
 # optimizer
 opt = torch.optim.Adam(model.parameters(), lr=2e-4)
 # trainer
-trainer = Trainer(model, F.cross_entropy, opt)
+trainer = Trainer(model, F.cross_entropy, opt, epochs=2)
 # train and validate
-trainer.fit(train_dl, val_dl, 2)
+trainer.fit(train_dl, val_dl)
 # test
 trainer.test(test_dl)
 ```

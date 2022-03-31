@@ -3,8 +3,8 @@ from .metrics import MetricBase
 
 
 class GeneralTaskModule(LightningModule):
-    def __init__(self, model, loss, optimizer, metrics=None, log_step_loss=True, log_epoch_loss=True):
-        super().__init__()
+    def __init__(self, model, loss, optimizer, metrics=None, log_step_loss=True, log_epoch_loss=True, **kwargs):
+        super().__init__(**kwargs)
         self.model = model
         self.loss_fn = loss
         self.opt = optimizer

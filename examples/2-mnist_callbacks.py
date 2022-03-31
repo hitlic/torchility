@@ -5,7 +5,7 @@ from torchvision.datasets import MNIST
 from torchvision import transforms
 from torch.utils.data import DataLoader, random_split
 from torchility import Trainer
-from torchility.callbacks import PrintProgressBar
+from torchility.callbacks import SimpleBar, Progress
 from torchility.utils import rename
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 import time
@@ -58,7 +58,14 @@ chkpoint_cbk = ModelCheckpoint(monitor='val_loss', dirpath='./checkpoints/',
 early_stop_cbk = EarlyStopping(monitor='val_loss', min_delta=0.00, patience=3, verbose=False, mode='min')
 
 # 训练器，使用新的进度条，以及其他callbacks
-trainer = Trainer(model, F.cross_entropy, opt, metrics=[accuracy],
-                  callbacks=[PrintProgressBar(), chkpoint_cbk, early_stop_cbk])
-trainer.fit(train_dl, val_dl, 2)                                       # 训练、验证
+trainer = Trainer(model, F.cross_entropy, opt, max_epochs=3,
+                  metrics=[accuracy],
+                  callbacks=[SimpleBar(),      # 进度条
+                             chkpoint_cbk,     # checkkpoint
+                             early_stop_cbk,   # 早停
+                             Progress('step')  # 使得fit返回每个batch中的损失和指标
+                             ])
+progress = trainer.fit(train_dl, val_dl)                               # 训练、验证
 trainer.test(test_dl)                                                  # 测试
+
+print(progress)  # 训练过程，包括训练和验证中的损失和其他指标

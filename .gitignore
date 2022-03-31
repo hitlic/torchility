@@ -1,3 +1,4 @@
+.gitignore
 build
 dist
 torchility.egg-info
@@ -7,3 +8,9 @@ test.py
 lightning_logs
 __pycache__
 cmds.txt
+checkpoints
+checkpoints/*
+datasets
+datasets/*
+logs
+logs/*

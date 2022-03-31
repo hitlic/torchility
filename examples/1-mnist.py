@@ -38,8 +38,8 @@ opt = torch.optim.Adam(model.parameters(), lr=2e-4)
 
 
 # 4. --- 训练
-trainer = Trainer(model, F.cross_entropy, opt)                      # 训练器
+trainer = Trainer(model, F.cross_entropy, opt, epochs=2)                      # 训练器
 # trainer = Trainer(model, F.cross_entropy, opt,
 #                   gpus=1 if torch.cuda.is_available() else None)  # 使用GPU
-trainer.fit(train_dl, val_dl, 2)                                    # 训练、验证
+trainer.fit(train_dl, val_dl)                                       # 训练、验证
 trainer.test(test_dl)                                               # 测试

@@ -41,9 +41,9 @@ opt = torch.optim.Adam(model.parameters(), lr=2e-4)
 
 
 # 4. --- 训练
-trainer = Trainer(model, F.cross_entropy, opt,
-                  callbacks=[LRFinder(max_batch=100)])  # 训练器，使用LRFinder
-trainer.fit(train_dl, epochs=2)                         # 训练、验证
+trainer = Trainer(model, F.cross_entropy, opt,          # 训练器，使用LRFinder
+                  epochs=2, callbacks=[LRFinder(max_batch=100)])  
+trainer.fit(train_dl)                                   # 训练、验证
 
 # 5. --- 绘图
 trainer.lrfinder.plot()

@@ -4,7 +4,7 @@ import itertools
 from typing import Iterable
 import torch
 
-class TensorList(list):
+class TensorTuple(tuple):
     """
     list of tensors
     """
@@ -40,6 +40,7 @@ class TensorList(list):
     def int(self):
         return TensorList(t.int() for t in self)
 
+TensorList = TensorTuple
 
 def rename(newname):
     def decorator(f):

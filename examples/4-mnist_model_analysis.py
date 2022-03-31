@@ -42,9 +42,9 @@ opt = torch.optim.Adam(model.parameters(), lr=2e-4)
 # 4. --- 训练
 backward_analyzer = ModelAnalyzer('backward')                       # 对各层反向梯度进行分析
 forward_analyzer = ModelAnalyzer('forward')                         # 对各层前向输出进行分析
-trainer = Trainer(model, F.cross_entropy, opt,
+trainer = Trainer(model, F.cross_entropy, opt, epochs=2,
                   callbacks=[backward_analyzer, forward_analyzer])  # 训练器
-trainer.fit(train_dl, epochs=2)                                     # 训练、验证
+trainer.fit(train_dl,)                                     # 训练、验证
 
 
 # 5. --- 显示分析结果图像

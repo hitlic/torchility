@@ -7,6 +7,7 @@ from pytorch_lightning import LightningDataModule
 from pytorch_lightning.loggers import TensorBoardLogger
 from .metrics import MetricBase
 from .tasks import GeneralTaskModule
+from .callbacks import Progress
 
 def default_args(func):
     signature = inspect.signature(func)
@@ -20,6 +21,7 @@ class Trainer(PLTrainer):
     def __init__(self, model:torch.nn.Module=None,  # pytorch Module
         loss:Callable=None,                         # loss function
         optimizer:torch.optim.Optimizer=None,       # pytorch optimizer
+        epochs=None,                                # max epochs
         metrics:Union[Callable, MetricBase]=None,   # instance of MetricBase or other callable instance
         task_module: LightningModule=None,          # task_model
         datamodule: LightningDataModule = None,     # PL data module
@@ -45,7 +47,15 @@ class Trainer(PLTrainer):
         #   *    Trainer Parameters    --- LIC  *
         #   *************************************
         self.init_params = default_args(PLTrainer)
-        self.init_params.update(pltrainer_kwargs)  # get default arguments
+        if epochs is not None:  # for easy use
+            self.init_params['max_epochs'] = epochs
+        self.init_params.update(pltrainer_kwargs)     # get default arguments
+        self.init_params['num_sanity_val_steps'] = 0  # how many validation steps to execute before running
+        # use Progress callback
+        if self.init_params['callbacks'] is None:
+            self.init_params['callbacks'] = [Progress()]
+        elif not any([isinstance(cbk, Progress) for cbk in self.init_params['callbacks']]):
+            self.init_params['callbacks'].append(Progress())
         # default logger
         if self.init_params['logger'] == True:
             if self.init_params['default_root_dir'] is None:
@@ -55,15 +65,12 @@ class Trainer(PLTrainer):
             self.init_params['logger'] = TensorBoardLogger(log_dir, name=None, log_graph=True, default_hp_metric=False)
         super().__init__(**self.init_params)
 
-    def fit(self, train_dl=None, val_dl=None, epochs=None):
-        if epochs is not None:
-            current_epoch = self.fit_loop.current_epoch
-            self.fit_loop.max_epochs = epochs + current_epoch
-
+    def fit(self, train_dl=None, val_dl=None, epochs=None, ckpt_path=None):
         if self.datamodule:
-            super().fit(self.task_module, datamodule=self.datamodule)
+            super().fit(self.task_module, datamodule=self.datamodule, ckpt_path=ckpt_path)
         else:
-            super().fit(self.task_module, train_dataloaders=train_dl, val_dataloaders=val_dl)
+            super().fit(self.task_module, train_dataloaders=train_dl, val_dataloaders=val_dl, ckpt_path=ckpt_path)
+        return self.progress
 
     def test(self, test_dl=None, ckpt_path='best', pl_module=None, verbose=True):
         if test_dl is not None:
