@@ -52,6 +52,7 @@ class Trainer(PLTrainer):
         self.init_params.update(pltrainer_kwargs)     # get default arguments
         self.init_params['num_sanity_val_steps'] = 0  # how many validation steps to execute before running
         # use Progress callback
+        self.progress = None
         if self.init_params['callbacks'] is None:
             self.init_params['callbacks'] = [Progress()]
         elif not any([isinstance(cbk, Progress) for cbk in self.init_params['callbacks']]):
