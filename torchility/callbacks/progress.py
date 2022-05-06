@@ -93,6 +93,8 @@ class SimpleBar(ProgressBarBase, ProgressMix):
         train_info = '  '.join([f'{k:>}: {v:0<6.4f}' for k, v in train_info_dict.items()])
         val_stage = '  VAL >'
         val_info = '  '.join([f'{k:>}: {v:0<6.4f}' for k, v in val_info_dict.items()])
+        if not val_info:
+            val_stage = ''
         print(progress, train_stage, train_info, val_stage, val_info)
 
     def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):

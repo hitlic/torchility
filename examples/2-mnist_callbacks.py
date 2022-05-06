@@ -40,6 +40,7 @@ model = nn.Sequential(
 
 # 3. --- 优化器
 opt = torch.optim.Adam(model.parameters(), lr=2e-4)
+scheduler = torch.optim.lr_scheduler.StepLR(opt, 8, gamma=0.1, last_epoch=-1)
 
 
 # 4. --- 训练
@@ -58,7 +59,7 @@ chkpoint_cbk = ModelCheckpoint(monitor='val_loss', dirpath='./checkpoints/',
 early_stop_cbk = EarlyStopping(monitor='val_loss', min_delta=0.00, patience=3, verbose=False, mode='min')
 
 # 训练器，使用新的进度条，以及其他callbacks
-trainer = Trainer(model, F.cross_entropy, opt, max_epochs=3,
+trainer = Trainer(model, F.cross_entropy, [opt, scheduler], max_epochs=3,
                   metrics=[accuracy],
                   callbacks=[SimpleBar(),      # 进度条
                              chkpoint_cbk,     # checkkpoint
