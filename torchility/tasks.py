@@ -1,41 +1,39 @@
 from pytorch_lightning import LightningModule
-from .metrics import MetricBase
-
+from torchmetrics import Metric
 
 class GeneralTaskModule(LightningModule):
-    def __init__(self, model, loss, optimizer, metrics=None, log_step_loss=True, log_epoch_loss=True, **kwargs):
+    def __init__(self, model, loss, optimizer, metrics=None, **kwargs):
         super().__init__(**kwargs)
         self.model = model
         self.loss_fn = loss
         self.opt = optimizer
-        self.metrics = [] if metrics is None else metrics
-        self.on_step = log_step_loss
-        self.on_epoch = log_epoch_loss
-
-        # 存放训练、验证、测试过程中的各种消息数据
-        self.messages = dict()
+        self.metrics = metrics
+        self.messages = dict()          # 存放训练、验证、测试过程中的各种消息数据
 
     def forward(self, *batch_data):                         # 前向计算
         return self.model(*batch_data)
 
     def training_step(self, batch, batch_nb):               # 训练步
         loss, preds, targets = self.do_forward(batch)
-        self.log('train_loss', loss, prog_bar=True, on_step=self.on_step, on_epoch=self.on_epoch, batch_size=preds.shape[0])
-        self.do_metric(preds, targets, 'train', self.log)
+        self.log('train_loss', loss, prog_bar=True, on_step=True, on_epoch=True)
+        if self.metrics:
+            self.do_metric(preds, targets, 'train', True, True)
         self.messages['train_batch'] = (batch_nb, preds, targets)  # (batch_idx, preds, tagets)
         return loss
 
     def validation_step(self, batch, batch_nb):             # 验证步
         loss, preds, targets = self.do_forward(batch)
-        self.log('val_loss', loss, prog_bar=True, on_step=self.on_step, on_epoch=self.on_epoch, batch_size=preds.shape[0])
-        self.do_metric(preds, targets, 'val', self.log)
+        self.log('val_loss', loss, prog_bar=True, on_step=True, on_epoch=True)
+        if self.metrics:
+            self.do_metric(preds, targets, 'val', True, True)
         self.messages['val_batch'] = (batch_nb, preds, targets)  # (batch_idx, preds, tagets)
         return {'val_loss': loss}
 
     def test_step(self, batch, batch_nb):                   # 测试步
         loss, preds, targets = self.do_forward(batch)
-        self.log('test_loss', loss, prog_bar=True, on_step=self.on_step, on_epoch=self.on_epoch, batch_size=preds.shape[0])
-        self.do_metric(preds, targets, 'test', self.log)
+        self.log('test_loss', loss, prog_bar=True, on_step=False, on_epoch=True)
+        if self.metrics:
+            self.do_metric(preds, targets, 'test', False, True)
         self.messages['test_batch'] = (batch_nb, preds, targets)  # (batch_idx, preds, tagets)
         return {'test_loss': loss}
 
@@ -55,14 +53,12 @@ class GeneralTaskModule(LightningModule):
         loss = self.loss_fn(preds, targets)
         return loss, preds, targets
 
-    def do_metric(self, preds, targets, state, log):               # 指标计算
-        for metric in self.metrics:
-            result = metric(preds, targets)
-            if isinstance(metric, MetricBase):
-                name = metric.name
-                on_step = metric.log_step
-                on_epoch = metric.log_epoch
+    def do_metric(self, preds, targets, state, on_step, on_epoch):               # 指标计算
+        metrics = self.metrics[state]
+        for metric in metrics:
+            if isinstance(metric, Metric):
+                metric(preds, targets.int())
+                self.log(f"{state}_{metric.name}", metric, prog_bar=True, on_step=on_step, on_epoch=on_epoch, metric_attribute=metric)
             else:
-                name = metric.__name__
-                on_step, on_epoch = True, True
-            log(f"{state}_{name}", result, prog_bar=True, on_step=on_step, on_epoch=on_epoch, batch_size=preds.shape[0])
+                value = metric(preds, targets)
+                self.log(f"{state}_{metric.name}", value, prog_bar=True, on_step=on_step, on_epoch=on_epoch)

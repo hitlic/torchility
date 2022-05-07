@@ -4,7 +4,6 @@ from .utils import rename
 import torch.nn.functional as F
 import numpy as np
 
-
 class MetricBase(abc.ABC):
     def __init__(self, name=None, on_step=True, on_epoch=True):
         self.log_step = on_step
@@ -18,8 +17,6 @@ class MetricBase(abc.ABC):
     def forward(self, preds, targets):
         return NotImplemented
 
-
-# --- metrics
 
 @rename('acc')
 def accuracy(out, yb):

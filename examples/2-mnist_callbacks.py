@@ -6,7 +6,7 @@ from torchvision import transforms
 from torch.utils.data import DataLoader, random_split
 from torchility import Trainer
 from torchility.callbacks import SimpleBar, Progress
-from torchility.utils import rename
+from torchmetrics import Accuracy, F1Score
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 import time
 import warnings
@@ -44,12 +44,10 @@ scheduler = torch.optim.lr_scheduler.StepLR(opt, 8, gamma=0.1, last_epoch=-1)
 
 
 # 4. --- 训练
-# 自定义指标
-@rename('acc')
-def accuracy(preds, targets):
-    preds = preds.argmax(1)
-    return (preds == targets).float().mean()
-
+# 评价指标
+acc = 'acc', Accuracy()
+acc1 = 'acc1', Accuracy(average='macro', num_classes=10)
+f1 = 'f1', F1Score(average='macro', num_classes=10)
 
 # 每个epoch保存一次模型的callback
 chkpoint_cbk = ModelCheckpoint(monitor='val_loss', dirpath='./checkpoints/',
@@ -59,8 +57,8 @@ chkpoint_cbk = ModelCheckpoint(monitor='val_loss', dirpath='./checkpoints/',
 early_stop_cbk = EarlyStopping(monitor='val_loss', min_delta=0.00, patience=3, verbose=False, mode='min')
 
 # 训练器，使用新的进度条，以及其他callbacks
-trainer = Trainer(model, F.cross_entropy, [opt, scheduler], max_epochs=3,
-                  metrics=[accuracy],
+trainer = Trainer(model, F.cross_entropy, [opt, scheduler], max_epochs=20,
+                  metrics=[acc, acc1, f1],
                   callbacks=[SimpleBar(),      # 进度条
                              chkpoint_cbk,     # checkkpoint
                              early_stop_cbk,   # 早停
