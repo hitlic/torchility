@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 
 class LRFinder(Callback):
-    def __init__(self, max_batch=100, min_lr=1e-6, max_lr=10):
+    def __init__(self, max_batch=100, min_lr=1e-6, max_lr=5):
         super().__init__()
         self.max_batch, self.min_lr, self.max_lr = max_batch, min_lr, max_lr
         self.best_loss = 1e9

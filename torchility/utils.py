@@ -7,6 +7,12 @@ import itertools
 import torch
 from matplotlib import pyplot as plt
 
+def detach_clone(tensors):
+    if isinstance(tensors, torch.Tensor):
+        return tensors.detach().clone()
+    else:
+        return [detach_clone(t) for t in tensors]
+
 
 class TensorTuple(tuple):
     """

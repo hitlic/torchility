@@ -1,5 +1,6 @@
 from pytorch_lightning import LightningModule
 from torchmetrics import Metric
+from .utils import detach_clone
 
 class GeneralTaskModule(LightningModule):
     def __init__(self, model, loss, optimizer, metrics=None, **kwargs):
@@ -16,6 +17,8 @@ class GeneralTaskModule(LightningModule):
     def training_step(self, batch, batch_nb):               # 训练步
         loss, preds, targets = self.do_forward(batch)
         self.log('train_loss', loss, prog_bar=True, on_step=True, on_epoch=True)
+
+        preds, targets = detach_clone(preds), detach_clone(targets)
         if self.metrics:
             self.do_metric(preds, targets, 'train', True, True)
         self.messages['train_batch'] = (batch_nb, preds, targets)  # (batch_idx, preds, tagets)
@@ -24,6 +27,8 @@ class GeneralTaskModule(LightningModule):
     def validation_step(self, batch, batch_nb):             # 验证步
         loss, preds, targets = self.do_forward(batch)
         self.log('val_loss', loss, prog_bar=True, on_step=True, on_epoch=True)
+
+        preds, targets = detach_clone(preds), detach_clone(targets)
         if self.metrics:
             self.do_metric(preds, targets, 'val', True, True)
         self.messages['val_batch'] = (batch_nb, preds, targets)  # (batch_idx, preds, tagets)
@@ -31,9 +36,11 @@ class GeneralTaskModule(LightningModule):
 
     def test_step(self, batch, batch_nb):                   # 测试步
         loss, preds, targets = self.do_forward(batch)
-        self.log('test_loss', loss, prog_bar=True, on_step=False, on_epoch=True)
+        self.log('test_loss', loss, prog_bar=True, on_step=True, on_epoch=True)
+
+        preds, targets = detach_clone(preds), detach_clone(targets)
         if self.metrics:
-            self.do_metric(preds, targets, 'test', False, True)
+            self.do_metric(preds, targets, 'test', True, True)
         self.messages['test_batch'] = (batch_nb, preds, targets)  # (batch_idx, preds, tagets)
         return {'test_loss': loss}
 
@@ -53,12 +60,12 @@ class GeneralTaskModule(LightningModule):
         loss = self.loss_fn(preds, targets)
         return loss, preds, targets
 
-    def do_metric(self, preds, targets, state, on_step, on_epoch):               # 指标计算
+    def do_metric(self, preds, targets, state, on_step, on_epoch):  # 指标计算
         metrics = self.metrics[state]
         for metric in metrics:
             if isinstance(metric, Metric):
-                metric(preds, targets.int())
+                metric(preds, targets)
                 self.log(f"{state}_{metric.name}", metric, prog_bar=True, on_step=on_step, on_epoch=on_epoch, metric_attribute=metric)
             else:
                 value = metric(preds, targets)
-                self.log(f"{state}_{metric.name}", value, prog_bar=True, on_step=on_step, on_epoch=on_epoch)
+                self.log(f"{state}_{metric.name}_step", value, prog_bar=True, on_step=on_step, on_epoch=False)

@@ -1,21 +1,62 @@
-import abc
 import torch
 from .utils import rename
 import torch.nn.functional as F
 import numpy as np
+from copy import deepcopy
 
-class MetricBase(abc.ABC):
-    def __init__(self, name=None, on_step=True, on_epoch=True):
-        self.log_step = on_step
-        self.log_epoch = on_epoch
+class MetricBase:
+    """
+    torchility评价指标的使用方式有如下三种：
+    （1）torchmetrics.Metric的子类，包括torchmetrics中提供的各种指标。
+        如果模型输出结果比较复杂，可重写forward方法，先预处理再调用父类forward方法。
+    （2）自定义指标。继承MetricBase，指标的计算方法可以以metric_fn参数传入，或者重写forward方法。
+        如果模型输出结果比较复杂，可重写prepare方法预处理。
+    （3）提供一个函数等可调用对象作为评价指标，它会被自动封装为MetricBase的对象，运行过程与（2）相同。
+    
+        这三种方式中，最推荐使用第（1）种方式，因为后两种方式会把每个batch的预测和标签记录下来以计算epoch的结果，
+    可能占用较大存储空间。此外，输出结果中第（1）种指标总是位于（2）和（3）种指标之前。
+
+    注意：__建议__在torchility.Trainer的metrics参数中，为每个指标指定一个名字，用于在进度中显示。例如，
+        m1 = ('m1_name', metric1)
+        m2 = 'm2_name', metric2     # 括号加不加都一样
+        trainer = torchility.Trainer(metrics=[m1, m2], ...)
+    """
+    def __init__(self, metric_fn=None, name=None):
         self.name = self.__class__.__name__ if name is None else name
+        if metric_fn:
+            self.metric_fn = metric_fn
+        else:
+            self.metric_fn = self.forward
+        self.pred_batchs = []
+        self.target_batchs = []
 
     def __call__(self, preds, targets):
-        return self.forward(preds, targets)
+        preds, targets = self.prepare(preds, targets)
+        self.update(preds, targets)
+        return self.metric_fn(preds, targets)
 
-    @abc.abstractmethod
+    def prepare(self, preds, targets):
+        """如果模型输出结果或者标签比较复杂，在计算指标前需要预处理，则需要重写本方法"""
+        return preds, targets
+
     def forward(self, preds, targets):
         return NotImplemented
+    
+    def update(self, preds, targets):
+        self.pred_batchs.append(preds)
+        self.target_batchs.append(targets)
+
+    def reset(self):
+        self.pred_batchs = []
+        self.target_batchs = []
+
+    def compute(self):
+        pred_epoch = torch.concat(self.pred_batchs)
+        target_epoch = torch.concat(self.target_batchs)
+        return self.metric_fn(pred_epoch, target_epoch)
+
+    def clone(self):
+        return deepcopy(self)
 
 
 @rename('acc')

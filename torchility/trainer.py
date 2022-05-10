@@ -5,9 +5,14 @@ from pytorch_lightning import Trainer as PLTrainer
 from pytorch_lightning import LightningModule
 from pytorch_lightning import LightningDataModule
 from pytorch_lightning.loggers import TensorBoardLogger
+from pytorch_lightning.callbacks import ProgressBarBase
+
+from torchmetrics import Metric
+
+from .callbacks import ResetMetrics, SimpleBar
+from .metrics import MetricBase
 from .tasks import GeneralTaskModule
 from .callbacks import Progress
-from torchmetrics import Metric
 
 
 def default_args(func):
@@ -30,11 +35,13 @@ class Trainer(PLTrainer):
         **pltrainer_kwargs                          # keyword arguments of pytorch_lightning Trainer
         ):
 
+        self.init_params = default_args(PLTrainer)
+        self.progress = None
+
         #   *************************************
         #   *    Task Configuration    --- LIC  *
         #   *************************************
         metrics = self._prepare_metrics(metrics)
-
         if task_module is None:
             self.task_module = GeneralTaskModule(model, loss, optimizer, metrics, **task_kwargs)
         else:
@@ -44,22 +51,22 @@ class Trainer(PLTrainer):
         #   *************************************
         #   *    Trainer Parameters    --- LIC  *
         #   *************************************
-        self.init_params = default_args(PLTrainer)
         if epochs is not None:  # for easy use
             self.init_params['max_epochs'] = epochs
-        
         if pltrainer_kwargs.get('log_every_n_steps', None) is None: # log each step
             pltrainer_kwargs['log_every_n_steps'] = 1
         self.init_params.update(pltrainer_kwargs)     # get default arguments
         self.init_params['num_sanity_val_steps'] = 0  # how many validation steps to execute before running
 
         # === set callbacks
-        # set Progress callback
-        self.progress = None
-        if self.init_params['callbacks'] is None:
-            self.init_params['callbacks'] = [Progress()]
-        elif not any([isinstance(cbk, Progress) for cbk in self.init_params['callbacks']]):
-            self.init_params['callbacks'].append(Progress())
+        cbks = [ResetMetrics()]
+        if self.init_params['callbacks'] is not None:
+            cbks.extend(self.init_params['callbacks'])
+        if not any([isinstance(cbk, Progress) for cbk in cbks]):
+            cbks.append(Progress())
+        if not any([isinstance(cbk, ProgressBarBase) for cbk in cbks]):
+            cbks.append(SimpleBar())  # ResetMetrics must stay before SimpleBar
+        self.init_params['callbacks'] = cbks
 
         # === default logger
         if self.init_params['logger'] == True:
@@ -68,15 +75,17 @@ class Trainer(PLTrainer):
             else:
                 log_dir = self.init_params['default_root_dir']
             self.init_params['logger'] = TensorBoardLogger(log_dir, name=None, log_graph=True, default_hp_metric=False)
+
         super().__init__(**self.init_params)
 
     def _prepare_metrics(self, metrics):
         metrics_ready = {'train': [], 'val':[], 'test':[]}
         for m in metrics:
             if isinstance(m, (tuple, list)):  # when m is (metric_name, metric)
+                assert len(m) == 2, '`metric` should be a tuple of (metric_name, metric_callable)'
                 name, m = m
                 m.name = name
-            if isinstance(m, Metric):
+            if isinstance(m, (Metric, MetricBase)):
                 if not hasattr(m, 'name'):
                     m.name = m.__class__.__name__
                 metrics_ready['train'].append(m)
@@ -84,10 +93,10 @@ class Trainer(PLTrainer):
                 metrics_ready['test'].append(m.clone())
             else:
                 if not hasattr(m, 'name'):
-                    m.name = m.__name__
-                metrics_ready['train'].append(m)
-                metrics_ready['val'].append(m)
-                metrics_ready['test'].append(m)
+                    name = m.__name__ if hasattr(m, '__name__') else type(m).__name__
+                metrics_ready['train'].append(MetricBase(m, name))
+                metrics_ready['val'].append(MetricBase(m, name))
+                metrics_ready['test'].append(MetricBase(m, name))
         return metrics_ready
 
     def fit(self, train_dl=None, val_dl=None, epochs=None, ckpt_path=None):
