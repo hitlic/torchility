@@ -1,5 +1,5 @@
 import torch
-from .utils import rename
+from .utils import rename, concat
 import torch.nn.functional as F
 import numpy as np
 from copy import deepcopy
@@ -51,8 +51,8 @@ class MetricBase:
         self.target_batchs = []
 
     def compute(self):
-        pred_epoch = torch.concat(self.pred_batchs)
-        target_epoch = torch.concat(self.target_batchs)
+        pred_epoch = concat(self.pred_batchs)
+        target_epoch = concat(self.target_batchs)
         return self.metric_fn(pred_epoch, target_epoch)
 
     def clone(self):

@@ -75,7 +75,7 @@ class SimpleBar(ProgressBarBase, ProgressMix):
     def disable(self):
         self.enable = True
 
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         self.train_batch_id = batch_idx + 1
         c_epoch, num_epoch, c_batch, num_batch, info_dict = self.get_info(trainer, 'train', 'step')
         progress = f"E:{c_epoch:>3d}/{num_epoch:<3d} B:{c_batch:>4d}/{num_batch:<4}"
@@ -150,7 +150,7 @@ class Progress(Callback, ProgressMix):
         else:
             self.curent_epoch = {'train_epoch': [], 'val_epoch': []}
 
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         self.train_batch_id = batch_idx + 1
         if self.unit == 'step':
             _, _, _, _, info_dict = self.get_info(trainer, 'train', 'step')

@@ -14,7 +14,7 @@ class BatchRecorder(Callback):
     def on_epoch_start(self, trainer, pl_module):
         self.recorder = []
 
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         if self.stage == 'train':
             self.recorder.append(pl_module.messages['train_batch'])
 

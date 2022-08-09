@@ -14,14 +14,14 @@ class LRFinder(Callback):
     def on_fit_start(self, trainer, pl_module):
         trainer.lrfinder = self
 
-    def on_train_batch_start(self, trainer, pl_module, batch, batch_idx, dataloader_idx):
+    def on_train_batch_start(self, trainer, pl_module, batch, batch_idx):
         pos = (batch_idx + 1)/self.max_batch
         lr = self.min_lr * (self.max_lr/self.min_lr) ** pos
         for pg in pl_module.opt.param_groups:
             pg['lr'] = lr
         self.lrs.append(lr)
 
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         batch_loss = outputs['loss']
         if batch_idx+1 >= self.max_batch or batch_loss > self.best_loss*10:
             trainer.should_stop = True
@@ -29,10 +29,19 @@ class LRFinder(Callback):
             self.best_loss = batch_loss
         self.losses.append(batch_loss)
 
+    def on_train_epoch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+        trainer.should_stop = True
+        return super().on_train_epoch_end(trainer, pl_module)
+
+    def on_fit_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> None:
+        self.plot()
+        return super().on_fit_end(trainer, pl_module)
+
     def plot(self):
         plt.plot(self.lrs, self.losses)
         plt.xlabel('learning rate')
         plt.ylabel('loss')
+        plt.show()
 
 
 class ModelAnalyzer(Callback):
@@ -54,7 +63,7 @@ class ModelAnalyzer(Callback):
             hook.data = outputs[0].data
         self.hooks = Hooks(pl_module.model, output_stats, self.mode)
 
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         mode = 'FORWARD' if self.mode == 'forward' else 'BACKWARD'
         mean_dict = {h.name: h.mean for h in self.hooks}
         std_dict = {h.name: h.std for h in self.hooks}
