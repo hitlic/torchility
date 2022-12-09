@@ -117,3 +117,58 @@ def plot_confusion(c_matrix, class_num, class_names=None,
     fig.subplots_adjust(bottom=0.15)
     return fig
 
+
+
+def unpack(data, num=None):
+    """
+    unpack data to given number of variables.
+    Example:
+        Code:
+            data = [1, 2]
+            x, y, z = unpack(data, 3)
+            print(x, y, z)
+        Output:
+            1 2 None
+
+    Args:
+        data: data to be unpacked
+        num: the number of variables
+    """
+    if num is None:
+        return data
+    if len(data) < num:
+        data = [d for d in data]
+        data.extend([None] * (num - len(data)))
+    else:
+        data = data[:num]
+    return data
+
+
+def groupby_apply(values: torch.Tensor, keys: torch.Tensor, reduction: str = "mean"):
+    """
+    Groupby apply for torch tensors.
+    Example: 
+        Code:
+            x = torch.FloatTensor([[1,1], [2,2],[3,3],[4,4],[5,5]])
+            g = torch.LongTensor([0,0,1,1,1])
+            print(groupby_apply(x, g, 'mean'))
+        Output:
+            tensor([[1.5000, 1.5000],
+                    [4.0000, 4.0000]])
+    Args:
+        values: values to aggregate - same size as keys
+        keys: tensor of groups. 
+        reduction: either "mean" or "sum"
+    Returns:
+        tensor with aggregated values
+    """
+    if reduction == "mean":
+        reduce = torch.mean
+    elif reduction == "sum":
+        reduce = torch.sum
+    else:
+        raise ValueError(f"Unknown reduction '{reduction}'")
+    keys = keys.to(values.device)
+    _, counts = keys.unique(return_counts=True)
+    reduced = torch.stack([reduce(item, dim=0) for item in torch.split_with_sizes(values, tuple(counts))])
+    return reduced

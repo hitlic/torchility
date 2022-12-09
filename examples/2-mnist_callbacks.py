@@ -1,6 +1,5 @@
 import time
 from pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
-from torchility.callbacks import Progress
 from torchility import Trainer
 from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
@@ -61,7 +60,6 @@ trainer = Trainer(model, F.cross_entropy, [opt, scheduler], epochs=10,
                   callbacks=[
                                 chkpoint_cbk,       # checkkpoint
                                 early_stop_cbk,     # 早停
-                                Progress('step')    # 使得fit返回每个batch中的损失和指标
                             ])
 progress = trainer.fit(train_dl, val_dl)            # 训练、验证
 trainer.test(test_dl, metrics=[f1], do_loss=False)  # 测试：metrics用于指定测试专用的指标，do_loss用于指定是否计算测试损失

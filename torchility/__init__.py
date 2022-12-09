@@ -1,7 +1,7 @@
 from .trainer import Trainer
 from .callbacks import *
 name = 'torchility'
-__version__ = '0.5.0'
+__version__ = '0.5.4'
 
 def update(to=None, newer_than=None):
     from packaging.version import parse
