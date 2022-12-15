@@ -3,6 +3,7 @@ import numpy as np
 import itertools
 import torch
 from matplotlib import pyplot as plt
+from matplotlib.pyplot import MultipleLocator
 
 def detach_clone(tensors):
     if isinstance(tensors, torch.Tensor):
@@ -105,10 +106,13 @@ def plot_confusion(c_matrix, class_num, class_names=None,
     for i, j in itertools.product(range(c_matrix.shape[0]), range(c_matrix.shape[1])):
         coeff = f'{c_matrix[i, j]:.{norm_dec}f}' if normalized else f'{c_matrix[i, j]}'
         plt.text(j, i, coeff, horizontalalignment="center", verticalalignment="center",
-                 color="white" if c_matrix[i, j] > thresh else "black")
+                 color="yellow" if c_matrix[i, j] > thresh else "green")
 
     ax = fig.gca()
     ax.set_ylim(class_num-.5, -.5)
+
+    ax.xaxis.set_major_locator(MultipleLocator(1))
+    ax.yaxis.set_major_locator(MultipleLocator(1))
 
     plt.ylabel('Target')
     plt.xlabel('Prediction')

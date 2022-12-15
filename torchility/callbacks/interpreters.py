@@ -1,5 +1,5 @@
 from pytorch_lightning.callbacks.base import Callback
-from torchmetrics import ConfusionMatrix
+from torchmetrics.classification import BinaryConfusionMatrix, MulticlassConfusionMatrix
 from itertools import chain
 import torch
 from ..utils import plot_confusion
@@ -11,7 +11,13 @@ class BatchRecorder(Callback):
         assert stage in ['train', 'val', 'test']
         self.stage = stage
 
-    def on_epoch_start(self, trainer, pl_module):
+    def on_train_epoch_start(self, trainer, pl_module):
+        self.recorder = []
+
+    def on_validation_epoch_start(self, trainer, pl_module):
+        self.recorder = []
+
+    def on_test_epoch_start(self, trainer, pl_module):
         self.recorder = []
 
     def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
@@ -67,22 +73,33 @@ class ClassifierInterpreter(Interpreter):
     """
     分类模型的解释器
     """
-
-    def __init__(self, class_num, normalize=False, stage='test'):
+    def __init__(self, class_num, binary=False, normalize=False, stage='test', threshold=0.5):
+        """
+        class_num: number of class.
+        binary: True of False
+        normalize: normalize or not
+        stage: 'train', 'val' or 'test'
+        threshold: threshold of classification
+        """
         super().__init__(stage=stage)
+        if binary:
+            assert class_num == 2, "class_mnum must be 2 for binary classification!"
         norm = 'true' if normalize else 'none'
-        self.conf_mat = ConfusionMatrix(class_num, normalize=norm)
+        if binary:
+            self.conf_mat = BinaryConfusionMatrix(normalize=norm, threshold=threshold)
+        else:
+            self.conf_mat = MulticlassConfusionMatrix(class_num, normalize=norm, threshold=threshold)
         self.class_num = class_num
         self.normalize = normalize
 
-    def confusion_matrix(self, argmax_pred=True, argmax_target=False):
+    def confusion_matrix(self, argmax_pred=False, argmax_target=False):
         for _, preds, targets in self.recorder:
             b_preds = preds.argmax(dim=1) if argmax_pred else preds
             b_targets = targets.argmax(dim=1) if argmax_target else targets
             self.conf_mat.update(b_preds.cpu(), b_targets.cpu())
         return self.conf_mat.compute().detach().numpy()
 
-    def plot_confusion(self, class_names=None, cmap='Blues', title_info='', argmax_pred=True, argmax_target=False):
+    def plot_confusion(self, class_names=None, cmap='Blues', title_info='', argmax_pred=False, argmax_target=False):
         c_matrix = self.confusion_matrix(argmax_pred, argmax_target)
         return plot_confusion(c_matrix, self.class_num, class_names, self.normalize, cmap=cmap, info=title_info)
 
