@@ -1,4 +1,4 @@
-from pytorch_lightning.callbacks.base import Callback
+from pytorch_lightning.callbacks.callback import Callback
 from torchmetrics.classification import BinaryConfusionMatrix, MulticlassConfusionMatrix
 from itertools import chain
 import torch
@@ -24,13 +24,25 @@ class BatchRecorder(Callback):
         if self.stage == 'train':
             self.recorder.append(pl_module.messages['train_batch'])
 
-    def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+    def on_validation_batch_end(self, trainer: "pl.Trainer",
+                                pl_module: "pl.LightningModule",
+                                outputs,
+                                batch,
+                                batch_idx: int,
+                                dataloader_idx: int = 0):
         if self.stage == 'val':
             self.recorder.append(pl_module.messages['val_batch'])
+        return super().on_validation_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
 
-    def on_test_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+    def on_test_batch_end(self, trainer: "pl.Trainer",
+                          pl_module: "pl.LightningModule",
+                          outputs,
+                          batch,
+                          batch_idx: int,
+                          dataloader_idx: int = 0):
         if self.stage == 'test':
             self.recorder.append(pl_module.messages['test_batch'])
+        return super().on_test_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
 
 
 class Interpreter(BatchRecorder):

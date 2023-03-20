@@ -1,6 +1,10 @@
-from pytorch_lightning.callbacks import ProgressBarBase
-from pytorch_lightning.callbacks.base import Callback
+from pytorch_lightning.callbacks import ProgressBar
+from pytorch_lightning.callbacks.callback import Callback
 from itertools import chain
+from typing import Any, Dict, Optional, Type
+import pytorch_lightning as pl
+from pytorch_lightning.utilities.types import STEP_OUTPUT
+
 
 class ProgressMix:
     """
@@ -62,7 +66,7 @@ class ProgressMix:
             return True
 
 
-class SimpleBar(ProgressBarBase, ProgressMix):
+class SimpleBar(ProgressBar, ProgressMix):
     """
     仅输出文本信息的进度条
     """
@@ -74,14 +78,19 @@ class SimpleBar(ProgressBarBase, ProgressMix):
 
     def disable(self):
         self.enable = True
-
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
+    
+    def on_train_batch_end(self, trainer: "pl.Trainer",
+                           pl_module: "pl.LightningModule",
+                           outputs,
+                           batch,
+                           batch_idx: int) -> None:
         self.train_batch_id = batch_idx + 1
         c_epoch, num_epoch, c_batch, num_batch, info_dict = self.get_info(trainer, 'train', 'step')
         progress = f"E:{c_epoch:>3d}/{num_epoch:<3d} B:{c_batch:>4d}/{num_batch:<4}"
         stage = 'TRAIN >'
         info = '  '.join([f'{k:>}: {v:0<6.4f}' for k, v in info_dict.items()])
         print(f"{progress} {stage} {info}", end="\r", flush=True)
+        return super().on_train_batch_end(trainer, pl_module, outputs, batch, batch_idx)
 
     def on_train_epoch_end(self, trainer, pl_module):
         train_c_epoch, train_num_epoch, train_c_batch, train_num_batch, train_info_dict = self.get_info(
@@ -96,25 +105,37 @@ class SimpleBar(ProgressBarBase, ProgressMix):
         if not val_info:
             val_stage = ''
         print(progress, train_stage, train_info, val_stage, val_info)
-
-    def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+    
+    def on_validation_batch_end(self, trainer: "pl.Trainer",
+                                pl_module: "pl.LightningModule",
+                                outputs,
+                                batch, 
+                                batch_idx: int,
+                                dataloader_idx: int = 0):
         self.val_batch_id = batch_idx + 1
         c_epoch, num_epoch, c_batch, num_batch, info_dict = self.get_info(trainer, 'val', 'step')
         progress = f"E:{c_epoch:>3d}/{num_epoch:<3d} B:{c_batch:>4d}/{num_batch:<4}"
         stage = '  VAL >'
         info = '  '.join([f'{k:>}: {v:0<6.4f}' for k, v in info_dict.items()])
         print(f"{progress} {stage} {info}", end="\r", flush=True)
+        return super().on_validation_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
 
     def on_test_epoch_start(self, trainer, pl_module):
         print('-' * 23)
-
-    def on_test_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+    
+    def on_test_batch_end(self, trainer: "pl.Trainer",
+                          pl_module: "pl.LightningModule",
+                          outputs,
+                          batch,
+                          batch_idx: int,
+                          dataloader_idx: int = 0):
         self.test_batch_id = batch_idx + 1
         c_epoch, num_epoch, c_batch, num_batch, info_dict = self.get_info(trainer, 'test', 'step')
         progress = f"E:{c_epoch:>3d}/{num_epoch:<3d} B:{c_batch:>4d}/{num_batch:<4}"
         stage = ' TEST >'
         info = '  '.join([f'{k:>}: {v:0<6.4f}' for k, v in info_dict.items()])
         print(f"{progress} {stage} {info}", end="\r", flush=True)
+        return super().on_test_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
 
     def on_test_epoch_end(self, trainer, pl_module):
         c_epoch, num_epoch, c_batch, num_batch, info_dict = self.get_info(trainer, 'test', 'epoch')
@@ -125,7 +146,6 @@ class SimpleBar(ProgressBarBase, ProgressMix):
 
 
 PrintProgressBar = SimpleBar
-
 
 class Progress(Callback, ProgressMix):
     """
@@ -150,17 +170,19 @@ class Progress(Callback, ProgressMix):
         else:
             self.curent_epoch = {'train_epoch': [], 'val_epoch': []}
 
-    def on_train_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
+    def on_train_batch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", outputs: STEP_OUTPUT, batch: Any, batch_idx: int) -> None:
         self.train_batch_id = batch_idx + 1
         if self.unit == 'step':
             _, _, _, _, info_dict = self.get_info(trainer, 'train', 'step')
             self.curent_epoch['train_epoch'].append(info_dict)
-
-    def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx):
+        return super().on_train_batch_end(trainer, pl_module, outputs, batch, batch_idx)
+    
+    def on_validation_batch_end(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule", outputs: Optional[STEP_OUTPUT], batch: Any, batch_idx: int, dataloader_idx: int = 0) -> None:
         self.val_batch_id = batch_idx + 1
         if self.unit == 'step':
             _, _, _, _, info_dict = self.get_info(trainer, 'val', 'step')
             self.curent_epoch['val_epoch'].append(info_dict)
+        return super().on_validation_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
 
     def on_validation_epoch_end(self, trainer, pl_module):
         if self.unit == 'epoch':

@@ -1,7 +1,7 @@
 from pytorch_lightning import LightningModule
 from torchmetrics import Metric
 from .utils import detach_clone
-from torch.optim.lr_scheduler import _LRScheduler
+from torch.optim.lr_scheduler import LRScheduler
 from torch.optim import Optimizer
 
 class GeneralTaskModule(LightningModule):
@@ -65,7 +65,7 @@ class GeneralTaskModule(LightningModule):
     def configure_optimizers(self):                         # 优化器
         if isinstance(self.opt, (list, tuple)) and len(self.opt) == 2 \
             and isinstance(self.opt[0], Optimizer) \
-            and isinstance(self.opt[1], _LRScheduler):
+            and isinstance(self.opt[1], LRScheduler):
             return {
                 'optimizer': self.opt[0],
                 'lr_scheduler': self.opt[1]

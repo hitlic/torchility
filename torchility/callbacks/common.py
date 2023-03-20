@@ -1,9 +1,8 @@
-from pytorch_lightning.callbacks.base import Callback
+from pytorch_lightning.callbacks.callback import Callback
 from ..metrics import MetricBase
 
 class ResetMetrics(Callback):
-    def __init__(self):
-        super().__init__()
+
     def on_train_epoch_end(self, trainer, pl_module):
         if pl_module.metrics:
             self.reset_metrics('train', pl_module)

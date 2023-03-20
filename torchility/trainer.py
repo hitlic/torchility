@@ -6,7 +6,7 @@ from pytorch_lightning import Trainer as PLTrainer
 from pytorch_lightning import LightningModule
 from pytorch_lightning import LightningDataModule
 from pytorch_lightning.loggers import TensorBoardLogger
-from pytorch_lightning.callbacks import ProgressBarBase
+from pytorch_lightning.callbacks import ProgressBar
 
 from torchmetrics import Metric
 
@@ -14,7 +14,7 @@ from .callbacks import ResetMetrics, SimpleBar
 from .metrics import MetricBase
 from .tasks import GeneralTaskModule
 from .callbacks import Progress
-
+from .utils import batches
 
 def default_args(func):
     signature = inspect.signature(func)
@@ -32,16 +32,19 @@ class Trainer(PLTrainer):
         metrics:Union[Callable, Metric]=(),         # instance of torchmetrics.Metric or other callable instance
         task_module: LightningModule=None,          # task_model
         datamodule: LightningDataModule = None,     # PL data module
+        default_bar=False,  # 是否使用默认进度条
         task_kwargs=dict(),                         # parameters of the task_module
         **pltrainer_kwargs                          # keyword arguments of pytorch_lightning Trainer
         ):
 
         self.init_params = default_args(PLTrainer)
         self.progress = None
+        self.best_model = None   # 训练中最好的torch模型
 
         #   *************************************
         #   *    Task Configuration    --- LIC  *
         #   *************************************
+
         metrics = self._prepare_metrics(metrics)
         if task_module is None:
             self.task_module = GeneralTaskModule(model, loss, optimizer, metrics, **task_kwargs)
@@ -63,16 +66,17 @@ class Trainer(PLTrainer):
         cbks = [ResetMetrics()]
         if self.init_params['callbacks'] is not None:
             cbks.extend(self.init_params['callbacks'])
-        if not any([isinstance(cbk, Progress) for cbk in cbks]):
-            cbks.append(Progress())
-        if not any([isinstance(cbk, ProgressBarBase) for cbk in cbks]):
-            cbks.append(SimpleBar())  # ResetMetrics must stay before SimpleBar
+        if self.init_params['enable_progress_bar'] !=False and not default_bar:
+            if not any([isinstance(cbk, Progress) for cbk in cbks]):
+                cbks.append(Progress())
+            if not any([isinstance(cbk, ProgressBar) for cbk in cbks]):
+                cbks.append(SimpleBar())  # ResetMetrics must stay before SimpleBar
         self.init_params['callbacks'] = cbks
 
         # === default logger
-        if self.init_params['logger'] == True:
+        if self.init_params['logger'] is None or self.init_params['logger'] == True:
             if self.init_params['default_root_dir'] is None:
-                log_dir = 'logs' 
+                log_dir = 'logs'
             else:
                 log_dir = self.init_params['default_root_dir']
             self.init_params['logger'] = TensorBoardLogger(log_dir, name=None, log_graph=True, default_hp_metric=False)
@@ -117,8 +121,9 @@ class Trainer(PLTrainer):
 
     def test(self, test_dl=None, ckpt_path='best', pl_module=None, verbose=True, metrics=None, do_loss=True):
         """
-        metrics: 一旦提供了test的metrics，则会将trainer中用于test的metrics覆盖，也就是说可以指定仅用于test的metrics
-        do_loss: 在测试时是否计算损失函数，当测试任务和训练任务数据不一致无法计算损失函数时，可设do_loss=False
+        Args:
+            metrics: 一旦提供了test的metrics，则会将trainer中用于test的metrics覆盖，也就是说可以指定仅用于test的metrics
+            do_loss: 在测试时是否计算损失函数，当测试任务和训练任务数据不一致无法计算损失函数时，可设do_loss=False
         """
         self.task_module.do_test_loss = do_loss
         if metrics is not None:  # 如果提供了仅用于test的metrics
@@ -131,6 +136,32 @@ class Trainer(PLTrainer):
             return super().test(pl_module, datamodule=self.datamodule, ckpt_path=ckpt_path, verbose=verbose)
         else:
             raise Exception("Dataloader or DataModule is needed!")
+
+    def predict_with_best(self, X, batch_size=0, train=False):
+        """
+        利用最佳模型对X进行预测，返回预测结果
+        Args:
+            X: torch.Tensor
+            batch_size: 如果batch_size == 0则不划分minibatch
+            train: 模型以训练模式(train)还是评价模式(eval)进行预测
+        """
+        if self.best_model is None:
+            self.best_model = self.restore_best()
+        if train:
+            self.best_model.train()
+        else:
+            self.best_model.eval()
+        device = next(self.best_model.parameters()).device
+
+        if batch_size > 0:
+            preds = []
+            for batch in batches(X, batch_size):
+                batch = batch.to(device)
+                preds.append(self.best_model(batch))
+            return torch.cat(preds)
+        else:
+            X = X.to(device)
+            return self.best_model(X)
 
     def resume_checkpoint(self, ckpt_path):
         """
@@ -160,7 +191,7 @@ class Trainer(PLTrainer):
 
     def restore_best_k(self):
         """
-        restore best k checkpoints. k is value of `save_top_k` argument in the `ModelCheckpoint` callback.
+        restore best k checkpoints. k is the value of `save_top_k` argument in the `ModelCheckpoint` callback.
         """
         best_ckp_paths = self.checkpoint_callback.best_k_models.keys()
         best_models = []

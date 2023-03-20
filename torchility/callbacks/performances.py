@@ -1,4 +1,4 @@
-from pytorch_lightning.callbacks.base import Callback
+from pytorch_lightning.callbacks.callback import Callback
 from ..hooks import Hooks
 import matplotlib.pyplot as plt
 

@@ -1,7 +1,7 @@
 from torchility import __version__
 import setuptools
 
-with open("README.md", 'r') as fh:
+with open("README.md", 'r', encoding="utf8") as fh:
     long_description = fh.read()
 
 setuptools.setup(
@@ -23,6 +23,7 @@ setuptools.setup(
     keywords='',
     packages=setuptools.find_packages(exclude=['__pycache__', '__pycache__/*']),
     py_modules=[],  # any single-file Python modules that aren’t part of a package
-    install_requires=['torch>=1.8', 'pytorch-lightning>=1.7', 'torchmetrics>=0.11.0', 'matplotlib>=3.3','pyyaml>=5.4'],
+    # install_requires=['torch>=2.0', 'pytorch-lightning==2.0', 'torchmetrics==0.11.4', 'matplotlib>=3.3','pyyaml>=5.4'],
+    install_requires=['torch>=2.0', 'pytorch-lightning>=2.0,<2.1', 'torchmetrics>=0.11.4', 'matplotlib>=3.3','pyyaml>=5.4'],
     python_requires='>=3.8'
 )

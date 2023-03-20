@@ -5,6 +5,21 @@ import torch
 from matplotlib import pyplot as plt
 from matplotlib.pyplot import MultipleLocator
 
+
+def batches(inputs, batch_size):
+    """
+    把inputs按batch_size进行划分
+    """
+    start_idx = 0
+    while True:
+        batch = inputs[start_idx: start_idx + batch_size]
+        if len(batch) > 0:
+            yield batch
+            start_idx += len(batch)
+        else:
+            break
+
+
 def detach_clone(tensors):
     if isinstance(tensors, torch.Tensor):
         return tensors.detach().clone()

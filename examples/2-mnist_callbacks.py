@@ -43,25 +43,25 @@ scheduler = torch.optim.lr_scheduler.StepLR(opt, 8, gamma=0.1, last_epoch=-1)
 
 
 # 4. --- 训练
-acc = 'acc', Accuracy()
-acc1 = 'acc1', Accuracy(average='macro', num_classes=10)
-f1 = 'f1', F1Score(average='macro', num_classes=10)
+acc = 'acc', Accuracy(task='multiclass', num_classes=10)
+acc1 = 'acc1', Accuracy(task='multiclass', average='macro', num_classes=10)
+f1 = 'f1', F1Score(task='multiclass', average='macro', num_classes=10)
 
-# 每个epoch保存一次模型的callback
-chkpoint_cbk = ModelCheckpoint(monitor='val_loss', dirpath='./checkpoints/',
-                               filename=f'time={int(time.time())}'+'-{epoch:03d}-{val_loss_epoch:.4f}',
-                               save_top_k=1, mode='min', every_n_epochs=1)
+def acc2(preds, targets):
+    preds = preds.argmax(1)
+    return (preds == targets).float().mean()
+
+
 # 早停callback
 early_stop_cbk = EarlyStopping(monitor='val_loss', min_delta=0.00, patience=3, verbose=False, mode='min')
 
 # 训练器，使用新的进度条，以及其他callbacks
 trainer = Trainer(model, F.cross_entropy, [opt, scheduler], epochs=10,
-                  metrics=[acc, acc1],
+                  metrics=[acc, acc1, acc2],
                   callbacks=[
-                                chkpoint_cbk,       # checkkpoint
                                 early_stop_cbk,     # 早停
                             ])
 progress = trainer.fit(train_dl, val_dl)            # 训练、验证
-trainer.test(test_dl, metrics=[f1], do_loss=False)  # 测试：metrics用于指定测试专用的指标，do_loss用于指定是否计算测试损失
+trainer.test(test_dl, metrics=[f1, acc2], do_loss=False)  # 测试：metrics用于指定测试专用的指标，do_loss用于指定是否计算测试损失
 
 print(progress)  # 训练过程，包括训练和验证中的损失和其他指标
