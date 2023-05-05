@@ -3,6 +3,7 @@ from torchmetrics import Metric
 from .utils import detach_clone
 from torch.optim.lr_scheduler import LRScheduler
 from torch.optim import Optimizer
+from typing import Any
 
 class GeneralTaskModule(LightningModule):
     def __init__(self, model, loss, optimizer, metrics=None, **kwargs):
@@ -13,6 +14,7 @@ class GeneralTaskModule(LightningModule):
         self.metrics = metrics
         self.messages = dict()          # 存放训练、验证、测试过程中的各种消息数据
         self.do_test_loss = True
+        self.pred_dataloader_has_label = True
 
     def forward(self, *batch_data):                         # 前向计算
         return self.model(*batch_data)
@@ -62,6 +64,10 @@ class GeneralTaskModule(LightningModule):
         else:
             return None
 
+    def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
+        _, preds, _, _ = self.do_forward(batch, False, self.pred_dataloader_has_label)
+        return preds
+
     def configure_optimizers(self):                         # 优化器
         if isinstance(self.opt, (list, tuple)) and len(self.opt) == 2 \
             and isinstance(self.opt[0], Optimizer) \
@@ -73,8 +79,13 @@ class GeneralTaskModule(LightningModule):
         else:
             return self.opt
 
-    def do_forward(self, batch, do_loss=True):                            # 前向计算
-        input_feat, targets = batch[:-1], batch[-1]  # batch最后一个元素为标签
+    def do_forward(self, batch, do_loss=True, has_label=True):                            # 前向计算
+        if has_label:
+            input_feat, targets = batch[:-1], batch[-1]  # batch最后一个元素为标签
+        else:
+            input_feat, targets = batch, None
+            if not isinstance(input_feat, (list, tuple)):
+                input_feat = [input_feat]
         preds = self(*input_feat)
         if do_loss:
             loss = self.loss_fn(preds, targets)
@@ -91,7 +102,11 @@ class GeneralTaskModule(LightningModule):
                 self.log(f"{state}_{metric.name}", metric, prog_bar=True, on_step=on_step, on_epoch=on_epoch, metric_attribute=metric, batch_size=batch_size)
             else:
                 value = metric(preds, targets)
-                self.log(f"{state}_{metric.name}_step", value, prog_bar=True, on_step=on_step, on_epoch=False, batch_size=batch_size)
+                if isinstance(value, dict):  # 一个函数中计算多个指标，返回一个字典
+                    value_dict = {f"{state}_{metric.name}{k}_step":v for k, v in value.items()}
+                    self.log_dict(value_dict, prog_bar=True, on_step=on_step, on_epoch=False, batch_size=batch_size)
+                else:
+                    self.log(f"{state}_{metric.name}_step", value, prog_bar=True, on_step=on_step, on_epoch=False, batch_size=batch_size)
 
     def _batch_size(self, inputs):
         """检测batch size以用于输出日志"""

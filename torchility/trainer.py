@@ -119,7 +119,7 @@ class Trainer(PLTrainer):
             super().fit(self.task_module, train_dataloaders=train_dl, val_dataloaders=val_dl, ckpt_path=ckpt_path)
         return self.progress
 
-    def test(self, test_dl=None, ckpt_path='best', pl_module=None, verbose=True, metrics=None, do_loss=True):
+    def test(self, test_dl=None, ckpt_path='best', verbose=True, metrics=None, do_loss=True):  # pylint: disable=arguments-renamed
         """
         Args:
             metrics: 一旦提供了test的metrics，则会将trainer中用于test的metrics覆盖，也就是说可以指定仅用于test的metrics
@@ -131,17 +131,30 @@ class Trainer(PLTrainer):
             self.task_module.metrics['test'] = test_metrics
 
         if test_dl is not None:
-            return super().test(pl_module, dataloaders=test_dl, ckpt_path=ckpt_path, verbose=verbose)
+            return super().test(self.task_module, dataloaders=test_dl, ckpt_path=ckpt_path, verbose=verbose)
         elif self.datamodule and self.datamodule.test_dataloader():
-            return super().test(pl_module, datamodule=self.datamodule, ckpt_path=ckpt_path, verbose=verbose)
+            return super().test(self.task_module, datamodule=self.datamodule, ckpt_path=ckpt_path, verbose=verbose)
         else:
-            raise Exception("Dataloader or DataModule is needed!")
+            raise Exception("Dataloader or DataModule is needed!")  # pylint: disable=broad-exception-raised
 
-    def predict_with_best(self, X, batch_size=0, train=False):
+    def predict(self, pred_dl=None, has_label=False, ckpt_path='best', concat=True):  # pylint: disable=arguments-renamed
+        self.task_module.pred_dataloader_has_label = has_label
+        if pred_dl is not None:
+            preds = super().predict(self.task_module, pred_dl, None, return_predictions=True, ckpt_path=ckpt_path)
+        elif self.datamodule and self.datamodule.test_dataloader():
+            preds = super().predict(self.task_module, None, self.datamodule, return_predictions=True, ckpt_path=ckpt_path)
+        else:
+            raise Exception("Dataloader or DataModule is needed!")  # pylint: disable=broad-exception-raised
+        if concat:
+            return torch.cat(preds, dim=0)
+        else:
+            return preds
+
+    def predict_with_best(self, *inputs, batch_size=0, train=False):
         """
-        利用最佳模型对X进行预测，返回预测结果
+        利用最佳模型对inputs进行预测，返回预测结果
         Args:
-            X: torch.Tensor
+            inputs: Tensor或者Tensor列表
             batch_size: 如果batch_size == 0则不划分minibatch
             train: 模型以训练模式(train)还是评价模式(eval)进行预测
         """
@@ -155,13 +168,17 @@ class Trainer(PLTrainer):
 
         if batch_size > 0:
             preds = []
-            for batch in batches(X, batch_size):
+            for batch in batches(inputs, batch_size):
                 batch = batch.to(device)
-                preds.append(self.best_model(batch))
+                with torch.no_grad():
+                    pred_out = self.best_model(*batch)
+                preds.append(pred_out)
             return torch.cat(preds)
         else:
-            X = X.to(device)
-            return self.best_model(X)
+            with torch.no_grad():
+                inputs = [data.to(device) for data in inputs]
+                pred_out = self.best_model(*inputs)
+            return pred_out
 
     def resume_checkpoint(self, ckpt_path):
         """

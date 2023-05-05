@@ -20,5 +20,9 @@ class ResetMetrics(Callback):
         for metric in metrics:
             if not isinstance(metric, MetricBase): continue
             value = metric.compute()
-            task.log(f"{state}_{metric.name}_epoch", value, prog_bar=True, on_step=False, on_epoch=True)
+            if isinstance(value, dict):
+                value_dict = {f"{state}_{metric.name}{k}_epoch":v for k, v in value.items()}
+                task.log_dict(value_dict, prog_bar=True, on_step=False, on_epoch=True)
+            else:
+                task.log(f"{state}_{metric.name}_epoch", value, prog_bar=True, on_step=False, on_epoch=True)
             metric.reset()

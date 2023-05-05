@@ -41,7 +41,7 @@ class MetricBase:
 
     def forward(self, preds, targets):
         return NotImplemented
-    
+
     def update(self, preds, targets):
         self.pred_batchs.append(preds)
         self.target_batchs.append(targets)

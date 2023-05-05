@@ -4,18 +4,46 @@ import itertools
 import torch
 from matplotlib import pyplot as plt
 from matplotlib.pyplot import MultipleLocator
+from queue import PriorityQueue
+
+
+class TopKQueue(PriorityQueue):
+    """
+    能够保存最大值的优先队列
+    """
+    def __init__(self, k: int = 0):
+        super().__init__(maxsize=k)
+
+    def put(self, e):
+        if self.full():
+            if e[0] > self.queue[0][0]:
+                self.get()
+            else:
+                return
+        super().put(e)
+
+    def items(self):
+        return sorted(self.queue, key=lambda e: e[0], reverse=True)
 
 
 def batches(inputs, batch_size):
     """
     把inputs按batch_size进行划分
     """
+    is_list_input = isinstance(inputs, (list, tuple))  # inputs是否是多个输入组成的列表或元素
     start_idx = 0
+    is_over = False
     while True:
-        batch = inputs[start_idx: start_idx + batch_size]
-        if len(batch) > 0:
-            yield batch
+        if is_list_input:
+            batch = TensorTuple([data[start_idx: start_idx + batch_size] for data in inputs])
+            is_over = len(batch[0]) > 0
+            start_idx += len(batch[0])
+        else:
+            batch = inputs[start_idx: start_idx + batch_size]
+            is_over = len(batch) > 0
             start_idx += len(batch)
+        if is_over > 0:
+            yield batch
         else:
             break
 
@@ -44,29 +72,29 @@ class TensorTuple(tuple):
             return torch.device(type='cpu')
 
     def to(self, device, **kwargs):
-        return TensorList(t.to(device, **kwargs) for t in self)
+        return TensorTuple(t.to(device, **kwargs) for t in self)
 
     def cpu(self):
-        return TensorList(t.cpu() for t in self)
+        return TensorTuple(t.cpu() for t in self)
 
     def clone(self):
-        return TensorList(t.clone() for t in self)
+        return TensorTuple(t.clone() for t in self)
 
     def detach(self):
-        return TensorList(t.detach() for t in self)
+        return TensorTuple(t.detach() for t in self)
 
     @property
     def data(self):
-        return TensorList(t.data for t in self)
+        return TensorTuple(t.data for t in self)
 
     def float(self):
-        return TensorList(t.float() for t in self)
+        return TensorTuple(t.float() for t in self)
 
     def long(self):
-        return TensorList(t.long() for t in self)
+        return TensorTuple(t.long() for t in self)
 
     def int(self):
-        return TensorList(t.int() for t in self)
+        return TensorTuple(t.int() for t in self)
 
 TensorList = TensorTuple
 
