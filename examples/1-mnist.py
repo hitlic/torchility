@@ -18,7 +18,6 @@ train_dl = DataLoader(train_ds, batch_size=32)
 val_dl = DataLoader(val_ds, batch_size=32)
 test_dl = DataLoader(test_ds, batch_size=32)
 
-
 # 2. --- 模型
 channels, width, height = (1, 28, 28)
 model = nn.Sequential(
@@ -38,9 +37,11 @@ opt = torch.optim.Adam(model.parameters(), lr=2e-4)
 
 
 # 4. --- 训练
-trainer = Trainer(model, F.cross_entropy, opt, epochs=2)            # 训练器
-trainer.fit(train_dl, val_dl)                                       # 训练、验证
-trainer.test(test_dl)                                               # 测试
+trainer = Trainer(model, F.cross_entropy, opt, epochs=2, logger=False)  # 训练器
+trainer.fit(train_dl, val_dl)                                           # 训练、验证
+# trainer.test(test_dl)                                                 # 测试
+trainer.test(test_dl, do_loss=False)                                    # 测试过程中不计算损失
+trainer.predict(test_dl, has_label=True)                                # 预测
 
 
 """ 使用GPU

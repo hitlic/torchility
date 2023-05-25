@@ -1,9 +1,11 @@
 from pytorch_lightning import LightningModule
 from torchmetrics import Metric
-from .utils import detach_clone
+from .utils import detach_clone, get_batch_size
 from torch.optim.lr_scheduler import LRScheduler
 from torch.optim import Optimizer
 from typing import Any
+from .callbacks.common import dict_metric_name
+
 
 class GeneralTaskModule(LightningModule):
     def __init__(self, model, loss, optimizer, metrics=None, **kwargs):
@@ -13,8 +15,8 @@ class GeneralTaskModule(LightningModule):
         self.opt = optimizer
         self.metrics = metrics
         self.messages = dict()          # 存放训练、验证、测试过程中的各种消息数据
-        self.do_test_loss = True
         self.pred_dataloader_has_label = True
+        self.current_dl_idx = 0
 
     def forward(self, *batch_data):                         # 前向计算
         return self.model(*batch_data)
@@ -36,33 +38,53 @@ class GeneralTaskModule(LightningModule):
 
         preds, targets = detach_clone(preds), detach_clone(targets)
         if self.metrics:
-            self.do_metric(preds, targets, 'train', True, True, batch_size)
+            metric_values = self.do_metric(preds, targets, 'train', 0)
         self.messages['train_batch'] = (batch_nb, preds, targets)  # (batch_idx, preds, tagets)
-        return loss
+        metric_values['loss'] = loss
+        return metric_values
 
-    def validation_step(self, batch, batch_nb):             # 验证步
-        loss, preds, targets, batch_size = self.do_forward(batch)
-        self.log('val_loss', loss, prog_bar=True, on_step=True, on_epoch=True, batch_size=batch_size)
+    def validation_step(self, batch, batch_nb, dataloader_idx=0):             # 验证步
+        do_loss = self.do_val_loss
+        if isinstance(do_loss, (list, tuple)):
+            do_loss = dataloader_idx in do_loss
+        loss, preds, targets, batch_size = self.do_forward(batch, do_loss)
+
+        metric_values = {}
+        if loss is not None:
+            self.log('val_loss', loss, prog_bar=True, on_step=True, on_epoch=True, batch_size=batch_size)
+            if self.multi_val_dataloaders:
+                metric_values[f'loss/{dataloader_idx}'] = loss
+            else:
+                metric_values['loss'] = loss
 
         preds, targets = detach_clone(preds), detach_clone(targets)
         if self.metrics:
-            self.do_metric(preds, targets, 'val', True, True, batch_size)
+            dl_idx = dataloader_idx if self.multi_val_dataloaders else -1
+            metric_values.update(self.do_metric(preds, targets, 'val', dl_idx))
         self.messages['val_batch'] = (batch_nb, preds, targets)  # (batch_idx, preds, tagets)
-        return {'val_loss': loss}
 
-    def test_step(self, batch, batch_nb):                   # 测试步
-        loss, preds, targets, batch_size = self.do_forward(batch, self.do_test_loss)
+        return metric_values
+
+    def test_step(self, batch, batch_nb, dataloader_idx=0):                   # 测试步
+        do_loss = self.do_test_loss
+        if isinstance(do_loss, (list, tuple)):
+            do_loss = dataloader_idx in do_loss
+        loss, preds, targets, _ = self.do_forward(batch, do_loss)
+
+        metric_values = {}
         if loss is not None:
-            self.log('test_loss', loss, prog_bar=True, on_step=True, on_epoch=True, batch_size=batch_size)
+            if self.multi_test_dataloaders:
+                metric_values[f'loss/{dataloader_idx}'] = loss
+            else:
+                metric_values['loss'] = loss
 
         preds, targets = detach_clone(preds), detach_clone(targets)
         if self.metrics:
-            self.do_metric(preds, targets, 'test', True, True, batch_size)
+            dl_idx = dataloader_idx if self.multi_test_dataloaders else -1
+            metric_values.update(self.do_metric(preds, targets, 'test', dl_idx))
         self.messages['test_batch'] = (batch_nb, preds, targets)  # (batch_idx, preds, tagets)
-        if loss is not None:
-            return {'test_loss': loss}
-        else:
-            return None
+
+        return metric_values
 
     def predict_step(self, batch: Any, batch_idx: int, dataloader_idx: int = 0) -> Any:
         _, preds, _, _ = self.do_forward(batch, False, self.pred_dataloader_has_label)
@@ -91,40 +113,19 @@ class GeneralTaskModule(LightningModule):
             loss = self.loss_fn(preds, targets)
         else:
             loss = None
-        batch_size = self._batch_size(input_feat)
+        batch_size = get_batch_size(input_feat)
         return loss, preds, targets, batch_size
 
-    def do_metric(self, preds, targets, state, on_step, on_epoch, batch_size):  # 指标计算
-        metrics = self.metrics[state]
+    def do_metric(self, preds, targets, stage, dl_idx):  # 指标计算
+        metrics = self.metrics[stage]
+        metric_values = {}
         for metric in metrics:
-            if isinstance(metric, Metric):
-                metric(preds, targets)
-                self.log(f"{state}_{metric.name}", metric, prog_bar=True, on_step=on_step, on_epoch=on_epoch, metric_attribute=metric, batch_size=batch_size)
+            if (metric.dl_idx >=0 and metric.dl_idx != dl_idx) or (stage not in metric.stages):
+                continue
+            value = metric(preds, targets)
+            if isinstance(value, dict):  # 一个函数中计算多个指标，返回一个字典
+                for k, v in value.items():
+                    metric_values[dict_metric_name(metric.name, k)] = v
             else:
-                value = metric(preds, targets)
-                if isinstance(value, dict):  # 一个函数中计算多个指标，返回一个字典
-                    value_dict = {f"{state}_{metric.name}{k}_step":v for k, v in value.items()}
-                    self.log_dict(value_dict, prog_bar=True, on_step=on_step, on_epoch=False, batch_size=batch_size)
-                else:
-                    self.log(f"{state}_{metric.name}_step", value, prog_bar=True, on_step=on_step, on_epoch=False, batch_size=batch_size)
-
-    def _batch_size(self, inputs):
-        """检测batch size以用于输出日志"""
-        if isinstance(inputs, (tuple, list)):
-            data = inputs[0]
-        else:
-            data = inputs
-        if hasattr(data, 'shape'):
-            return data.shape[0]
-        elif hasattr(data, '__len__'):
-            return len(data)
-        else:
-            data_type = f'{type(data).__module__}.{type(data).__name__}'
-            if data_type == 'dgl.heterograph.DGLHeteroGraph':
-                return data.batch_size
-            elif data_type == 'torch_geometric.data.batch.DataBatch':
-                return data.num_graphs
-            elif data_type == 'torch_geometric.data.data.Data':
-                return 1
-            else:
-                return None
+                metric_values[f"{metric.name}"] = value
+        return metric_values

@@ -14,7 +14,7 @@ warnings.simplefilter("ignore")
 data_dir = './datasets'
 transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1307,), (0.3081,))])
 mnist_full = MNIST(data_dir, train=True, transform=transform, download=True)
-train_ds, val_ds, _ = random_split(mnist_full, [5000, 5000, 50000])
+train_ds, val_ds = random_split(mnist_full, [55000, 5000])
 test_ds = MNIST(data_dir, train=False, transform=transform, download=True)
 train_dl = DataLoader(train_ds, batch_size=32)
 val_dl = DataLoader(val_ds, batch_size=32)
@@ -44,7 +44,7 @@ backward_analyzer = ModelAnalyzer('backward')                       # 对各层�
 forward_analyzer = ModelAnalyzer('forward')                         # 对各层前向输出进行分析
 trainer = Trainer(model, F.cross_entropy, opt, epochs=2,
                   callbacks=[backward_analyzer, forward_analyzer])  # 训练器
-trainer.fit(train_dl,)                                     # 训练、验证
+trainer.fit(train_dl)
 
 
 # 5. --- 显示分析结果图像

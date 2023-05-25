@@ -51,14 +51,40 @@ def batches(inputs, batch_size):
 def detach_clone(tensors):
     if isinstance(tensors, torch.Tensor):
         return tensors.detach().clone()
-    else:
+    elif isinstance(tensors, (list, tuple)):
         return [detach_clone(t) for t in tensors]
+    else:
+        return tensors
+
 
 def concat(tensor_lst, dim=0):
     if isinstance(tensor_lst[0], (list, tuple)):
         return [torch.concat(ts, dim) for ts in zip(*tensor_lst)]
     else:
         return torch.concat(tensor_lst, dim)
+
+
+def get_batch_size(inputs):
+    """检测batch size"""
+    if isinstance(inputs, (tuple, list)):
+        data = inputs[0]
+    else:
+        data = inputs
+    if hasattr(data, 'shape'):
+        return data.shape[0]
+    elif hasattr(data, '__len__'):
+        return len(data)
+    else:
+        data_type = f'{type(data).__module__}.{type(data).__name__}'
+        if data_type == 'dgl.heterograph.DGLHeteroGraph':
+            return data.batch_size
+        elif data_type == 'torch_geometric.data.batch.DataBatch':
+            return data.num_graphs
+        elif data_type == 'torch_geometric.data.data.Data':
+            return 1
+        else:
+            raise ValueError('Unknown batch size!')
+
 
 class TensorTuple(tuple):
     """
@@ -97,6 +123,7 @@ class TensorTuple(tuple):
         return TensorTuple(t.int() for t in self)
 
 TensorList = TensorTuple
+
 
 def rename(newname):
     def decorator(f):
@@ -163,7 +190,6 @@ def plot_confusion(c_matrix, class_num, class_names=None,
     # plt.tight_layout()
     fig.subplots_adjust(bottom=0.15)
     return fig
-
 
 
 def unpack(data, num=None):

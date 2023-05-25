@@ -4,17 +4,16 @@ import inspect
 from typing import Callable, Union
 from pytorch_lightning import Trainer as PLTrainer
 from pytorch_lightning import LightningModule
-from pytorch_lightning import LightningDataModule
 from pytorch_lightning.loggers import TensorBoardLogger
 from pytorch_lightning.callbacks import ProgressBar
 
 from torchmetrics import Metric
 
 from .callbacks import ResetMetrics, SimpleBar
-from .metrics import MetricBase
 from .tasks import GeneralTaskModule
 from .callbacks import Progress
-from .utils import batches
+from .utils import batches, set_metric_attr
+from .datamodule import GeneralDataModule
 
 def default_args(func):
     signature = inspect.signature(func)
@@ -28,15 +27,14 @@ class Trainer(PLTrainer):
     def __init__(self, model:torch.nn.Module=None,  # pytorch Module
         loss:Callable=None,                         # loss function
         optimizer:torch.optim.Optimizer=None,       # pytorch optimizer
-        epochs=None,                                # max epochs
+        epochs:int=None,                            # max epochs
         metrics:Union[Callable, Metric]=(),         # instance of torchmetrics.Metric or other callable instance
         task_module: LightningModule=None,          # task_model
-        datamodule: LightningDataModule = None,     # PL data module
-        default_bar=False,  # 是否使用默认进度条
-        task_kwargs=dict(),                         # parameters of the task_module
+        default_bar=False,                          # 是否使用默认进度条
+        reset_dl:int=0,                             # 每隔多个少epoch重置一次训练DataLoader，与reload_dataloaders_every_n_epochs相似
+        task_kwargs:dict=None,                      # parameters dict of the task_module
         **pltrainer_kwargs                          # keyword arguments of pytorch_lightning Trainer
         ):
-
         self.init_params = default_args(PLTrainer)
         self.progress = None
         self.best_model = None   # 训练中最好的torch模型
@@ -47,10 +45,11 @@ class Trainer(PLTrainer):
 
         metrics = self._prepare_metrics(metrics)
         if task_module is None:
+            task_kwargs = task_kwargs if task_kwargs is not None else {}
             self.task_module = GeneralTaskModule(model, loss, optimizer, metrics, **task_kwargs)
         else:
             self.task_module = task_module
-        self.datamodule = datamodule
+        self.datamodule = None
 
         #   *************************************
         #   *    Trainer Parameters    --- LIC  *
@@ -76,75 +75,94 @@ class Trainer(PLTrainer):
         # === default logger
         if self.init_params['logger'] is None or self.init_params['logger'] == True:
             if self.init_params['default_root_dir'] is None:
-                log_dir = 'logs'
+                log_dir = 'torchility_logs'
             else:
                 log_dir = self.init_params['default_root_dir']
             self.init_params['logger'] = TensorBoardLogger(log_dir, name=None, log_graph=True, default_hp_metric=False)
+
+        # === reset dataloader
+        self.reset_dl = reset_dl
+        if reset_dl > 0:
+            self.init_params['reload_dataloaders_every_n_epochs'] = reset_dl
 
         super().__init__(**self.init_params)
 
     def _prepare_metrics(self, metrics, just_for_test=False):
         metrics_ready = {'train': [], 'val':[], 'test':[]}
         for m in metrics:
-            if isinstance(m, (tuple, list)):  # when m is (metric_name, metric)
-                assert len(m) == 2, '`metric` should be a tuple of (metric_name, metric_callable)'
-                name, m = m
-                m.name = name
-            if isinstance(m, (Metric, MetricBase)):
-                if not hasattr(m, 'name'):
-                    m.name = m.__class__.__name__
-                if just_for_test:
-                    metrics_ready['test'].append(m.clone())
-                else:
-                    metrics_ready['train'].append(m)
-                    metrics_ready['val'].append(m.clone())
-                    metrics_ready['test'].append(m.clone())
+            m = set_metric_attr(m)
+            if just_for_test:
+                metrics_ready['test'].append(m)
             else:
-                if not hasattr(m, 'name'):
-                    name = m.__name__ if hasattr(m, '__name__') else type(m).__name__
-                else:
-                    name = m.name
-                if just_for_test:
-                    metrics_ready['test'].append(MetricBase(m, name))
-                else:
-                    metrics_ready['train'].append(MetricBase(m, name))
-                    metrics_ready['val'].append(MetricBase(m, name))
-                    metrics_ready['test'].append(MetricBase(m, name))
+                for stage in m.stages:
+                    metrics_ready[stage].append(m.clone())
+        del metrics
         return metrics_ready if not just_for_test else metrics_ready['test']
 
-    def fit(self, train_dl=None, val_dl=None, epochs=None, ckpt_path=None):
-        if self.datamodule:
-            super().fit(self.task_module, datamodule=self.datamodule, ckpt_path=ckpt_path)
-        else:
-            super().fit(self.task_module, train_dataloaders=train_dl, val_dataloaders=val_dl, ckpt_path=ckpt_path)
+    def fit(self, train_dl, val_dls=None, ckpt_path=None, do_val_loss=True):
+        """
+        Args:
+            train_dl: 用于训练的dataloader
+            val_dls:  用于验证的一个dataloader或多个dataloader列表
+            ckpt_path: checkpoints保存路径
+            do_val_loss: True表示在验证时计算损失；
+                         False表示验证时不计算损失；
+                         int 表示在使用多个验证dataloader时，在哪个dataloader上计算损失
+                         [int, ...]整数列表，表示在在哪些dataloader上计算损失
+        """
+        if isinstance(do_val_loss, (list, tuple)):
+            assert isinstance(val_dls, (list, tuple)), 'do_val_loss 的取值为val_dls中dataloader对应的id'
+            assert len(do_val_loss) < len(val_dls), 'do_val_loss 的取值为val_dls中dataloader对应的id'
+        elif do_val_loss.__class__ is int:
+            do_val_loss = [do_val_loss]
+        self.task_module.do_val_loss = do_val_loss
+
+        self.task_module.multi_val_dataloaders = False  # 是否使用多个验证dataloader
+        if isinstance(val_dls, (list, tuple)) and len(val_dls) > 1:
+            self.task_module.multi_val_dataloaders = True
+
+        dm = GeneralDataModule(train_dl=train_dl, val_dls=val_dls, reset=self.reset_dl)
+        self.datamodule = dm
+        super().fit(self.task_module, datamodule=dm, ckpt_path=ckpt_path)
         return self.progress
 
-    def test(self, test_dl=None, ckpt_path='best', verbose=True, metrics=None, do_loss=True):  # pylint: disable=arguments-renamed
+    def test(self, test_dls, ckpt_path='best', verbose=True, metrics=None, do_loss=True):  # pylint: disable=arguments-renamed
         """
         Args:
             metrics: 一旦提供了test的metrics，则会将trainer中用于test的metrics覆盖，也就是说可以指定仅用于test的metrics
-            do_loss: 在测试时是否计算损失函数，当测试任务和训练任务数据不一致无法计算损失函数时，可设do_loss=False
+            do_loss: True表示在测试时计算损失；
+                     False表示测试时不计算损失；
+                     [int, ...]整数列表示在使用多个测试dataloader时，在哪些dataloader上计算损失
         """
+        print('-' * 35)
+        if isinstance(do_loss, (list, tuple)):
+            assert isinstance(test_dls, (list, tuple)), 'do_loss 的取值为test_dls中dataloader对应的id'
+            assert len(do_loss) < len(test_dls), 'do_loss 的取值为test_dls中dataloader对应的id'
+        elif do_loss.__class__ is int:
+            do_loss = [do_loss]
         self.task_module.do_test_loss = do_loss
+
+        self.task_module.multi_test_dataloaders = False          # 是否使用多个测试dataloader
+        if isinstance(test_dls, (list, tuple)) and len(test_dls) > 1:
+            self.task_module.multi_test_dataloaders = True
+
         if metrics is not None:  # 如果提供了仅用于test的metrics
             test_metrics = self._prepare_metrics(metrics, just_for_test=True)
             self.task_module.metrics['test'] = test_metrics
 
-        if test_dl is not None:
-            return super().test(self.task_module, dataloaders=test_dl, ckpt_path=ckpt_path, verbose=verbose)
-        elif self.datamodule and self.datamodule.test_dataloader():
-            return super().test(self.task_module, datamodule=self.datamodule, ckpt_path=ckpt_path, verbose=verbose)
-        else:
-            raise Exception("Dataloader or DataModule is needed!")  # pylint: disable=broad-exception-raised
+        dm = GeneralDataModule(test_dls=test_dls)
+        super().test(self.task_module, datamodule=dm, ckpt_path=ckpt_path, verbose=False)
 
-    def predict(self, pred_dl=None, has_label=False, ckpt_path='best', concat=True):  # pylint: disable=arguments-renamed
+        if verbose:
+            for k, v in self.test_metrics.items():
+                print(f'{k}:\t {v}')
+        print('-' * 35, '\n')
+        return self.test_metrics
+
+    def predict(self, pred_dl, has_label=False, ckpt_path='best', concat=True):  # pylint: disable=arguments-renamed
         self.task_module.pred_dataloader_has_label = has_label
-        if pred_dl is not None:
-            preds = super().predict(self.task_module, pred_dl, None, return_predictions=True, ckpt_path=ckpt_path)
-        elif self.datamodule and self.datamodule.test_dataloader():
-            preds = super().predict(self.task_module, None, self.datamodule, return_predictions=True, ckpt_path=ckpt_path)
-        else:
-            raise Exception("Dataloader or DataModule is needed!")  # pylint: disable=broad-exception-raised
+        dm = GeneralDataModule(pred_dl=pred_dl)
+        preds = super().predict(self.task_module, datamodule=dm, return_predictions=True, ckpt_path=ckpt_path)
         if concat:
             return torch.cat(preds, dim=0)
         else:
@@ -202,7 +220,7 @@ class Trainer(PLTrainer):
         model = self.task_module.model
         loss = self.task_module.loss_fn
         opt = self.task_module.opt
-        self.task_module = self.task_module.load_from_checkpoint(self.checkpoint_callback.best_model_path, 
+        self.task_module = self.task_module.load_from_checkpoint(self.checkpoint_callback.best_model_path,
                                                             model=model, loss=loss, optimizer=opt)
         return self.task_module.model
 
@@ -220,7 +238,6 @@ class Trainer(PLTrainer):
             best_models.append(deepcopy(self.task_module.model))
         return best_models
 
-
     def save_state_dict(self, path='best_model.pth', mode='best'):
         """
         Save state_dict of pytorch model.
@@ -232,7 +249,7 @@ class Trainer(PLTrainer):
             model = self.task_module.model
             loss = self.task_module.loss_fn
             opt = self.task_module.opt
-            task = self.task_module.load_from_checkpoint(self.checkpoint_callback.best_model_path, 
+            task = self.task_module.load_from_checkpoint(self.checkpoint_callback.best_model_path,
                                                             model=model, loss=loss, optimizer=opt)
             torch.save(task.model.state_dict(), path)
         else:

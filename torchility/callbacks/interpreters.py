@@ -43,28 +43,29 @@ class Interpreter(Callback):
         if self.stage == 'train':
             self.batch_recorder.append(pl_module.messages['train_batch'])
             _, preds, targets = pl_module.messages['train_batch']
-            self.put_queue(preds, targets, batch[0])
+            self.put_queue(preds, targets, *batch[:-1])
 
     def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         if self.stage == 'val':
             self.batch_recorder.append(pl_module.messages['val_batch'])
             _, preds, targets = pl_module.messages['val_batch']
-            self.put_queue(preds, targets, batch[0])
+            self.put_queue(preds, targets, *batch[:-1])
 
     def on_test_batch_end(self, trainer, pl_module, outputs, batch, batch_idx):
         if self.stage == 'test':
             self.batch_recorder.append(pl_module.messages['test_batch'])
             _, preds, targets = pl_module.messages['test_batch']
-            self.put_queue(preds, targets, batch[0])
+            self.put_queue(preds, targets, *batch[:-1])
 
-    def put_queue(self, preds, targets, inputs):
+    def put_queue(self, preds, targets, *inputs):
         if self.metric is None:
             return
         batch_m = self.metric(preds, targets)
         assert batch_m.shape[0] == preds.shape[0], 'The `metric` must not be reduced!'
-        for m, pred, target, x in zip(batch_m.cpu(), preds.cpu(), targets.cpu(), inputs.cpu()):
+        for m, pred, target, *xs in zip(batch_m.cpu(), preds.cpu(), targets.cpu(), *[ipt.cpu() for ipt in inputs]):
             v = -m if self.mode == 'min' else m
-            self.top_queue.put((v.item(), [m.item(), pred.detach().numpy(), target.detach().numpy(), x.detach().numpy()]))
+            feat = xs[0].detach().numpy() if len(xs)==1 else [x.detach().numpy() for x in xs]
+            self.top_queue.put((v.item(), [m.item(), pred.detach().numpy(), target.detach().numpy(), feat]))
 
     def top_samples(self):
         """

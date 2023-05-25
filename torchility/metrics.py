@@ -1,8 +1,9 @@
 import torch
-from .utils import rename, concat
+from .utils import rename, concat, get_batch_size
 import torch.nn.functional as F
 import numpy as np
 from copy import deepcopy
+
 
 class MetricBase:
     """
@@ -14,26 +15,37 @@ class MetricBase:
     （3）提供一个函数等可调用对象作为评价指标，它会被自动封装为MetricBase的对象，运行过程与（2）相同。
     
         这三种方式中，最推荐使用第（1）种方式，因为后两种方式会把每个batch的预测和标签记录下来以计算epoch的结果，
-    可能占用较大存储空间。此外，输出结果中第（1）种指标总是位于（2）和（3）种指标之前。
+    可能占用较大存储空间。
 
     注意：__建议__在torchility.Trainer的metrics参数中，为每个指标指定一个名字，用于在进度中显示。例如，
-        m1 = ('m1_name', metric1)
-        m2 = 'm2_name', metric2     # 括号加不加都一样
+        m1 = ('m1_name', metric1)            或者 {'name': 'm1_name', 'metric': metric1}
+        m2 = 'm2_name', metric2              或者 {'name': 'm2_name', 'metric': metric2}
         trainer = torchility.Trainer(metrics=[m1, m2], ...)
     """
-    def __init__(self, metric_fn=None, name=None):
+    def __init__(self, metric_fn=None, name=None, simple_cumulate=False):
+        """
+        Args:
+            metric_fn: 计算指标的函数
+            name: 指标名称，用于进度显示
+            simple_cumulate: True：简单地利用batch_size自动累积计算epoch上的指标，
+                                   但利用混淆矩阵计算的指标这种方式会导致epoch指标计算错误；
+                             False：保存每个batch的预测和标签，在每个epoch之后计算。
+        """
         self.name = self.__class__.__name__ if name is None else name
         if metric_fn:
             self.metric_fn = metric_fn
         else:
             self.metric_fn = self.forward
+        self.simple_cumulate = simple_cumulate
+
         self.pred_batchs = []
         self.target_batchs = []
 
+        self.cumulate_size = 0
+        self.cumulate_value = None
+
     def __call__(self, preds, targets):
-        preds, targets = self.prepare(preds, targets)
-        self.update(preds, targets)
-        return self.metric_fn(preds, targets)
+        return self.update(preds, targets)
 
     def prepare(self, preds, targets):
         """如果模型输出结果或者标签比较复杂，在计算指标前需要预处理，则需要重写本方法"""
@@ -43,20 +55,47 @@ class MetricBase:
         return NotImplemented
 
     def update(self, preds, targets):
-        self.pred_batchs.append(preds)
-        self.target_batchs.append(targets)
+        preds, targets = self.prepare(preds, targets)
+        m_value = self.metric_fn(preds, targets)
+
+        if self.simple_cumulate:
+            if self.cumulate_value is None:
+                self.cumulate_value = {k: 0.0 for k in m_value.keys()} if isinstance(m_value, dict) else 0.0
+            b_size = get_batch_size(preds)
+            self.cumulate_size += b_size
+            if isinstance(m_value, dict):
+                for k, v in m_value.items():
+                    self.cumulate_value[k] += b_size * v
+            else:
+                self.cumulate_value += b_size * m_value
+        else:
+            self.pred_batchs.append(preds)
+            self.target_batchs.append(targets)
+        return m_value
 
     def reset(self):
         self.pred_batchs = []
         self.target_batchs = []
+        self.cumulate_size = 0
+        self.cumulate_value = None
 
     def compute(self):
-        pred_epoch = concat(self.pred_batchs)
-        target_epoch = concat(self.target_batchs)
-        return self.metric_fn(pred_epoch, target_epoch)
+        if self.simple_cumulate:
+            if isinstance(self.cumulate_value, dict):
+                return {k: v/self.cumulate_size for k, v in self.cumulate_value.items()}
+            else:
+                return self.cumulate_value / self.cumulate_size
+        else:
+            if len(self.pred_batchs) == 0 and len(self.pred_batchs) == 0:
+                return 0.0000
+            pred_epoch = concat(self.pred_batchs)
+            target_epoch = concat(self.target_batchs)
+            return self.metric_fn(pred_epoch, target_epoch)
 
     def clone(self):
         return deepcopy(self)
+
+
 
 
 @rename('acc')
