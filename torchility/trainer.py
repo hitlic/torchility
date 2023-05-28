@@ -31,7 +31,8 @@ class Trainer(PLTrainer):
         metrics:Union[Callable, Metric]=(),         # instance of torchmetrics.Metric or other callable instance
         task_module: LightningModule=None,          # task_model
         default_bar=False,                          # 是否使用默认进度条
-        reset_dl:int=0,                             # 每隔多个少epoch重置一次训练DataLoader，与reload_dataloaders_every_n_epochs相似
+        reset_dl:int=0,                             # 每隔多少个epoch重置一次训练DataLoader，与reload_dataloaders_every_n_epochs相似
+        val_freq=1,                                 # 每隔多少个epoch验证一次，与check_val_every_n_epoch相同
         task_kwargs:dict=None,                      # parameters dict of the task_module
         **pltrainer_kwargs                          # keyword arguments of pytorch_lightning Trainer
         ):
@@ -58,6 +59,8 @@ class Trainer(PLTrainer):
             self.init_params['max_epochs'] = epochs
         if pltrainer_kwargs.get('log_every_n_steps', None) is None: # log each step
             pltrainer_kwargs['log_every_n_steps'] = 1
+        if pltrainer_kwargs.get('check_val_every_n_epoch', None) is None:  # val freq
+            pltrainer_kwargs['check_val_every_n_epoch'] = val_freq
         self.init_params.update(pltrainer_kwargs)     # get default arguments
         self.init_params['num_sanity_val_steps'] = 0  # how many validation steps to execute before running
 
@@ -84,6 +87,10 @@ class Trainer(PLTrainer):
         self.reset_dl = reset_dl
         if reset_dl > 0:
             self.init_params['reload_dataloaders_every_n_epochs'] = reset_dl
+
+        self.val_epoch_metric_values = {}
+        self.train_epoch_metric_values = {}
+        self.test_epoch_metric_values = {}
 
         super().__init__(**self.init_params)
 

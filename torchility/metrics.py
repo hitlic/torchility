@@ -80,6 +80,8 @@ class MetricBase:
         self.cumulate_value = None
 
     def compute(self):
+        if self.cumulate_size == 0 or self.cumulate_value is None:
+            return 0.0
         if self.simple_cumulate:
             if isinstance(self.cumulate_value, dict):
                 return {k: v/self.cumulate_size for k, v in self.cumulate_value.items()}

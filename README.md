@@ -7,11 +7,21 @@ A tool for training pytorch deep learning model more simply which is based on Py
 - `pip install torchility`
 ### Dependency
 - pytorch>=2.0
-- pytorch-lightning>=2.0
-- torchmetrics>=0.11
+- pytorch-lightning>=2.0,<2.1
+- torchmetrics>=0.11,<0.12
 - matplotlib>=3.3
+- pyyaml>=5.4
+- tensorboardX>=2.6
 
 ## Usage
+
+### Data Flow
+
+<center>
+    <img src="imgs/data_flow.png" width="60%"/>
+</center>
+
+### Example
 
 - MNIST
 

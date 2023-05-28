@@ -14,6 +14,7 @@ transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.1
 mnist_full = MNIST(data_dir, train=True, transform=transform, download=True)
 train_ds, val_ds = random_split(mnist_full, [55000, 5000])
 test_ds = MNIST(data_dir, train=False, transform=transform, download=True)
+
 train_dl = DataLoader(train_ds, batch_size=32)
 val_dl = DataLoader(val_ds, batch_size=32)
 test_dl = DataLoader(test_ds, batch_size=32)

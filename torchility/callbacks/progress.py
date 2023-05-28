@@ -73,6 +73,7 @@ class SimpleBar(ProgressBar, ProgressMix):
         self.train_batch_id = 0
         self.val_batch_id = 0
         self.test_batch_id = 0
+        self.has_val = False
 
     def disable(self):
         self.enable = True
@@ -94,7 +95,7 @@ class SimpleBar(ProgressBar, ProgressMix):
         train_info_dict.update(trainer.train_epoch_metric_values)
 
         val_info_dict = {}
-        if len(trainer.datamodule.val_dataloader()) > 0:
+        if len(trainer.datamodule.val_dataloader()) > 0 and self.has_val:
             val_info_dict = self.get_epoch_loss(trainer, 'val')
             val_info_dict.update(trainer.val_epoch_metric_values)
 
@@ -107,6 +108,10 @@ class SimpleBar(ProgressBar, ProgressMix):
         if not val_info:
             val_stage = ''
         print(progress, train_stage, train_info, val_stage, val_info)
+        self.has_val = False
+
+    def on_validation_epoch_end(self, trainer, pl_module):
+        self.has_val = True  # 关前训练epoch是否包含验证
 
     def on_validation_batch_end(self, trainer, pl_module, outputs, batch, batch_idx, dataloader_idx: int = 0):
         self.val_batch_id = batch_idx + 1
@@ -158,7 +163,7 @@ class Progress(Callback, ProgressMix):
 
     def on_train_epoch_start(self, trainer, pl_module):
         if self.unit == 'epoch':
-            self.curent_epoch = {'train_epoch': None, 'val_epoch': None}
+            self.curent_epoch = {'train_epoch': {}, 'val_epoch': {}}
         else:
             self.curent_epoch = {'train_epoch': [], 'val_epoch': []}
 
