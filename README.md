@@ -15,12 +15,6 @@ A tool for training pytorch deep learning model more simply which is based on Py
 
 ## Usage
 
-### Data Flow
-
-<center>
-    <img src="imgs/data_flow.png" width="60%"/>
-</center>
-
 ### Example
 
 - MNIST
@@ -72,3 +66,9 @@ trainer.test(test_dl)
 ```
 
 - See the `examples` for more examples 
+
+### Data Flow
+
+<img src="imgs/data_flow.png" width="60%"/>
+
+

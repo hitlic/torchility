@@ -68,10 +68,8 @@ def acc3(preds, targets):
 
 trainer = Trainer(model, F.cross_entropy, opt, epochs=10,
                   metrics=[acc, acc1, acc2, acc3],    # 指定计算指标，默认在train、val和test中都会计算
-                  val_frac=2                          # 每2个epoch做一次验证
+                  val_freq=2                          # 每2个epoch做一次验证
                   )
-progress = trainer.fit(train_dl, val_dl)              # 训练、验证
+trainer.fit(train_dl, val_dl)                         # 训练、验证
 
 trainer.test(test_dl)                                 # 测试
-
-print(progress)

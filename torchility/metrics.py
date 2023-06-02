@@ -5,6 +5,10 @@ import numpy as np
 from copy import deepcopy
 
 
+class MetricNotUpdated(Exception):
+    pass
+
+
 class MetricBase:
     """
     torchility评价指标的使用方式有如下三种：
@@ -80,9 +84,9 @@ class MetricBase:
         self.cumulate_value = None
 
     def compute(self):
-        if self.cumulate_size == 0 or self.cumulate_value is None:
-            return 0.0
         if self.simple_cumulate:
+            if self.cumulate_size == 0 or self.cumulate_value is None:
+                raise MetricNotUpdated("The metric have not been updated!")
             if isinstance(self.cumulate_value, dict):
                 return {k: v/self.cumulate_size for k, v in self.cumulate_value.items()}
             else:
@@ -96,8 +100,6 @@ class MetricBase:
 
     def clone(self):
         return deepcopy(self)
-
-
 
 
 @rename('acc')
