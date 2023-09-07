@@ -1,6 +1,6 @@
 # torchility
 
-A tool for training pytorch deep learning model more simply which is based on Pytorch-lightning.
+A Pytorch-lightning based tool for training pytorch deep learning model more simply.
 
 ## Install
 
