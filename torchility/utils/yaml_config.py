@@ -1,6 +1,7 @@
 import yaml
 import os
 import os.path as osp
+from functools import reduce
 
 
 def load_yaml(yaml_path, encoding='utf8'):
@@ -39,12 +40,22 @@ def load_yaml(yaml_path, encoding='utf8'):
     def echo_fn(loader, node):
         seq = loader.construct_sequence(node)
         return seq[0]
+    
+    def sum_fn(loader, node):
+        seq = loader.construct_sequence(node)
+        return sum(seq)
+    
+    def mul_fn(loader, node):
+        seq = loader.construct_sequence(node)
+        return reduce(lambda x, y: x*y, seq)
 
     yaml.add_constructor('!path', path_fn)
     yaml.add_constructor('!join', path_fn)  # forward compatible
     yaml.add_constructor('!str', str_fn)
     yaml.add_constructor('!cat', str_fn)    # forward compatible
     yaml.add_constructor('!echo', echo_fn)
+    yaml.add_constructor('!sum', sum_fn)
+    yaml.add_constructor('!mul', mul_fn)
 
     with open(yaml_path, 'r', encoding=encoding) as f:
         cfg = yaml.load(f, Loader=yaml.FullLoader)
@@ -59,7 +70,7 @@ def check_path(path, create=True):
             print(f'Create path "{path}"!')
             os.mkdir(path)
         else:
-            raise Exception(f'Path "{path}" does not exists!')
+            raise ValueError(f'Path "{path}" does not exists!')
 
 
 def check_paths(*paths, create=True):
@@ -95,7 +106,7 @@ class ddict(dict):
             value = self[key]
             return value
         except KeyError:
-            raise Exception(f'KeyError! The key "{key}" does not exists!')
+            raise KeyError(f'KeyError! The key "{key}" does not exists!')
 
     def __setattr__(self, key, value):
         self.__setitem__(key, value)

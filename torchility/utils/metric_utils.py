@@ -9,12 +9,12 @@ def set_metric_attr(metric, name=None, stages=None, dl_idx:int=None, simple_cumu
         name:     指标名
         stages:   在哪些阶段运行，取值为 'train', 'val', 'test' 或者它们组成的列表，默认值 ['train', 'val', 'test']
         dl_idx:   验证或测试阶段使用多个dataloader时，指标运行在哪个dataloader之上，默认值 -1 表示所有的dataloader
-        simple_cumulate: MetricBase子类是否采用简单累积方式计算Epoch指标（利用batch_size累积指标值，效率高但不适用于基于混淆矩阵的指标），默认为False
+        simple_cumulate: MetricBase子类是否采用简单累积方式计算Epoch指标（利用batch_size累积指标值，效率高但不适用于基于混淆矩阵的指标），默认为True
         log:      是否将计算结果记入日志，默认值 True
         on_bar:   指标是否在pytorch_lightning内置的进度条上显示，默认值 True
     """
     # 默认属性取值
-    attr = {'name': None, 'stages': ['train', 'val', 'test'], 'dl_idx': -1, 'simple_cumulate': False, 'log': True, 'on_bar': True}
+    attr = {'name': None, 'stages': ['train', 'val', 'test'], 'dl_idx': -1, 'simple_cumulate': True, 'log': True, 'on_bar': True}
 
     if isinstance(metric, (tuple, list)):
         assert len(metric) == 2, "'`metric` should be a tuple of (metric_name, metric_callable) or (metric_callable, metric_name)"

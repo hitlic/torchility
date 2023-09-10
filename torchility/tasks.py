@@ -2,17 +2,31 @@ from pytorch_lightning import LightningModule
 from torchmetrics import Metric
 from .utils import detach_clone, get_batch_size
 from torch.optim.lr_scheduler import LRScheduler
-from torch.optim import Optimizer
+from torch.optim import Optimizer, Adam
 from typing import Any
 from .callbacks.common import dict_metric_name
 
 
+def dfault_loss(preds, targets):
+    """
+    default loss function, just return the model prediction.
+    """
+    return preds
+
 class GeneralTaskModule(LightningModule):
-    def __init__(self, model, loss, optimizer, metrics=None, **kwargs):
+    def __init__(self, model, loss=None, optimizer=None, metrics=None, **kwargs):
         super().__init__(**kwargs)
         self.model = model
-        self.loss_fn = loss
-        self.opt = optimizer
+        if loss is not None:
+            self.loss_fn = loss
+        else:
+            self.loss_fn = dfault_loss
+            print("\033[0;34;m\n**WARNING: The default loss function is used. Make sure the model returns a loss value.\n\033[0m")
+        if optimizer is not None:
+            self.opt = optimizer
+        else:
+            self.opt = Adam(model.parameters(), lr=0.001)
+            print("\033[0;34;m\n**WARNING: The Adam optimizer is used with learning rate of 0.001.\n\033[0m")
         self.metrics = metrics
         self.messages = dict()          # 存放训练、验证、测试过程中的各种消息数据
         self.pred_dataloader_has_label = True
@@ -69,10 +83,11 @@ class GeneralTaskModule(LightningModule):
         do_loss = self.do_test_loss
         if isinstance(do_loss, (list, tuple)):
             do_loss = dataloader_idx in do_loss
-        loss, preds, targets, _ = self.do_forward(batch, do_loss)
+        loss, preds, targets, batch_size = self.do_forward(batch, do_loss)
 
         metric_values = {}
         if loss is not None:
+            self.log('test_loss', loss, prog_bar=True, on_step=True, on_epoch=True, batch_size=batch_size)
             if self.multi_test_dataloaders:
                 metric_values[f'loss/{dataloader_idx}'] = loss
             else:
@@ -125,7 +140,19 @@ class GeneralTaskModule(LightningModule):
             value = metric(preds, targets)
             if isinstance(value, dict):  # 一个函数中计算多个指标，返回一个字典
                 for k, v in value.items():
+                    check_metric_value(v)
                     metric_values[dict_metric_name(metric.name, k)] = v
             else:
+                check_metric_value(value)
                 metric_values[f"{metric.name}"] = value
         return metric_values
+
+
+def check_metric_value(value):
+    if isinstance(value, (float, int)) or value.numel()==1:
+        return
+    raise MetricValueError("metric value must be a sigle number!")
+
+
+class MetricValueError(Exception):
+    pass

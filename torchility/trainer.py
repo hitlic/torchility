@@ -12,7 +12,7 @@ from torchmetrics import Metric
 from .callbacks import ResetMetrics, SimpleBar
 from .tasks import GeneralTaskModule
 from .callbacks import Progress
-from .utils import batches, set_metric_attr
+from .utils import batches, set_metric_attr, load_state_dict
 from .datamodule import GeneralDataModule
 
 def default_args(func):
@@ -33,6 +33,7 @@ class Trainer(PLTrainer):
         default_bar=False,                          # 是否使用默认进度条
         reset_dl:int=0,                             # 每隔多少个epoch重置一次训练DataLoader，与reload_dataloaders_every_n_epochs相似
         val_freq=1,                                 # 每隔多少个epoch验证一次，与check_val_every_n_epoch相同
+        long_output=False,                          # 进度输出中保留7位（True）还是4位（False）小数。
         task_kwargs:dict=None,                      # parameters dict of the task_module
         **pltrainer_kwargs                          # keyword arguments of pytorch_lightning Trainer
         ):
@@ -69,10 +70,10 @@ class Trainer(PLTrainer):
         if self.init_params['callbacks'] is not None:
             cbks.extend(self.init_params['callbacks'])
         if self.init_params['enable_progress_bar'] !=False and not default_bar:
-            if not any([isinstance(cbk, Progress) for cbk in cbks]):
+            if not any(isinstance(cbk, Progress) for cbk in cbks):
                 cbks.append(Progress())
-            if not any([isinstance(cbk, ProgressBar) for cbk in cbks]):
-                cbks.append(SimpleBar())  # ResetMetrics must stay before SimpleBar
+            if not any(isinstance(cbk, ProgressBar) for cbk in cbks):
+                cbks.append(SimpleBar(long_output))  # ResetMetrics must stay before SimpleBar
         self.init_params['callbacks'] = cbks
 
         # === default logger
@@ -245,7 +246,7 @@ class Trainer(PLTrainer):
             best_models.append(deepcopy(self.task_module.model))
         return best_models
 
-    def save_state_dict(self, path='best_model.pth', mode='best'):
+    def save_torch_state_dict(self, path='best_model.pth', mode='best'):
         """
         Save state_dict of pytorch model.
         Args:
@@ -262,7 +263,7 @@ class Trainer(PLTrainer):
         else:
             torch.save(self.task_module.model.state_dict(), path)
 
-    def load_state_dict(self, path='best_model.pth', model=None):
+    def load_torch_state_dict(self, path='best_model.pth', model=None):
         """load state_dict for pytorch model"""
         if model:
             model.load_state_dict(torch.load(path))
@@ -270,3 +271,13 @@ class Trainer(PLTrainer):
             self.task_module.model.load_state_dict(torch.load(path))
             model = self.task_module.model
         return model
+
+    @staticmethod
+    def load_state_dict(model, ckpt_path):
+        """
+        load state_dict for pytorch model from pytorch_lightning checkpoint.
+        Args:
+            model: pytorch model
+            ckpt_path: path of pytorch_lightning checkpoint
+        """
+        return load_state_dict(model, ckpt_path)

@@ -69,11 +69,13 @@ class SimpleBar(ProgressBar, ProgressMix):
     """
     自定义进度显示
     """
-    def __init__(self):
+    def __init__(self, long_output=False):
         self.train_batch_id = 0
         self.val_batch_id = 0
         self.test_batch_id = 0
         self.has_val = False
+        self.long_output = long_output
+
 
     def disable(self):
         self.enable = True
@@ -83,8 +85,11 @@ class SimpleBar(ProgressBar, ProgressMix):
         c_epoch, num_epoch, c_batch, num_batch = self.get_info(trainer, 'train')
         progress = f"E:{c_epoch:>3d}/{num_epoch:<3d} B:{c_batch:>4d}/{num_batch:<4}"
         stage = 'TRAIN >'
-        info = '  '.join([f'{k:>}: {v:0<6.4f}' for k, v in outputs.items()])
-        print(f"{progress} {stage} {info}", end="\r", flush=True)
+        if self.long_output:
+            info = '  '.join([f'{k:>}: {v:0<9.7f}' for k, v in outputs.items()])
+        else:
+            info = '  '.join([f'{k:>}: {v:0<6.4f}' for k, v in outputs.items()])
+        print(f"\r{progress} {stage} {info}", end="", flush=True)
         return super().on_train_batch_end(trainer, pl_module, outputs, batch, batch_idx)
 
     def on_train_epoch_end(self, trainer, pl_module):
@@ -99,12 +104,18 @@ class SimpleBar(ProgressBar, ProgressMix):
             val_info_dict = self.get_epoch_loss(trainer, 'val')
             val_info_dict.update(trainer.val_epoch_metric_values)
 
-        progress = f"E:{train_c_epoch:>3d}/{train_num_epoch:<3d} B:{train_num_batch:>4} {val_num_batch:<4}"
+        progress = f"\rE:{train_c_epoch:>3d}/{train_num_epoch:<3d} B:{train_num_batch:>4} {val_num_batch:<4}"
         train_stage = 'TRAIN >'
-        train_info = '  '.join([f'{k:>}: {v:0<6.4f}' for k, v in train_info_dict.items()])
+        if self.long_output:
+            train_info = '  '.join([f'{k:>}: {v:0<9.7f}' for k, v in train_info_dict.items()])
+        else:
+            train_info = '  '.join([f'{k:>}: {v:0<6.4f}' for k, v in train_info_dict.items()])
 
         val_stage = '  VAL >'
-        val_info = '  '.join([f'{k:>}: {v:0<6.4f}' for k, v in val_info_dict.items()])
+        if self.long_output:
+            val_info = '  '.join([f'{k:>}: {v:0<9.7f}' for k, v in val_info_dict.items()])
+        else:
+            val_info = '  '.join([f'{k:>}: {v:0<6.4f}' for k, v in val_info_dict.items()])
         if not val_info:
             val_stage = ''
         print(progress, train_stage, train_info, val_stage, val_info)
@@ -118,8 +129,11 @@ class SimpleBar(ProgressBar, ProgressMix):
         c_epoch, num_epoch, c_batch, num_batch  = self.get_info(trainer, 'val')
         progress = f"E:{c_epoch:>3d}/{num_epoch:<3d} B:{c_batch:>4d}/{num_batch:<4}"
         stage = '  VAL >'
-        info = '  '.join([f'{k:>}: {v:0<6.4f}' for k, v in outputs.items()])
-        print(f"{progress} {stage} {info}", end="\r", flush=True)
+        if self.long_output:
+            info = '  '.join([f'{k:>}: {v:0<9.7f}' for k, v in outputs.items()])
+        else:
+            info = '  '.join([f'{k:>}: {v:0<6.4f}' for k, v in outputs.items()])
+        print(f"\r{progress} {stage} {info}", end="", flush=True)
         return super().on_validation_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
 
     def on_test_batch_end(self, trainer, pl_module, outputs, batch, batch_idx: int, dataloader_idx: int = 0):
@@ -127,8 +141,11 @@ class SimpleBar(ProgressBar, ProgressMix):
         c_epoch, num_epoch, c_batch, num_batch = self.get_info(trainer, 'test')
         progress = f"E:{c_epoch:>3d}/{num_epoch:<3d} B:{c_batch:>4d}/{num_batch:<4}"
         stage = ' TEST >'
-        info = '  '.join([f'{k:>}: {v:0<6.4f}' for k, v in outputs.items()])
-        print(f"{progress} {stage} {info}", end="\r", flush=True)
+        if self.long_output:
+            info = '  '.join([f'{k:>}: {v:0<9.7f}' for k, v in outputs.items()])
+        else:
+            info = '  '.join([f'{k:>}: {v:0<6.4f}' for k, v in outputs.items()])
+        print(f"\r{progress} {stage} {info}", end="", flush=True)
         return super().on_test_batch_end(trainer, pl_module, outputs, batch, batch_idx, dataloader_idx)
 
     def on_test_epoch_end(self, trainer, pl_module):
@@ -137,9 +154,12 @@ class SimpleBar(ProgressBar, ProgressMix):
         info_dict.update(trainer.test_epoch_metric_values)
         progress = f"E:{c_epoch:>3d}/{num_epoch:<3d} B:{c_batch:>4d}/{num_batch:<4}"
         stage = ' TEST >'
-        info = '  '.join([f'{k:>}: {v:0<6.4f}' for k, v in info_dict.items()])
+        if self.long_output:
+            info = '  '.join([f'{k:>}: {v:0<9.7f}' for k, v in info_dict.items()])
+        else:
+            info = '  '.join([f'{k:>}: {v:0<6.4f}' for k, v in info_dict.items()])
         trainer.test_metrics = info_dict
-        print(progress, stage, info)
+        print(f"\r{progress} {stage} {info}")
 
 
 PrintProgressBar = SimpleBar
@@ -158,7 +178,7 @@ class Progress(Callback, ProgressMix):
         self.test_batch_id = 0
 
         self.progress_info = []
-        self.curent_epoch = None
+        self.curent_epoch = {}
         super().__init__()
 
     def on_train_epoch_start(self, trainer, pl_module):
