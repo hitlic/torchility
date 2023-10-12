@@ -1,5 +1,5 @@
 from torchility import Trainer
-from torchility.utils import set_metric_attr
+from torchility.utils import metric_config
 from torch.utils.data import DataLoader, random_split
 from torchvision import transforms
 from torchvision.datasets import MNIST
@@ -45,8 +45,8 @@ scheduler = torch.optim.lr_scheduler.StepLR(opt, 8, gamma=0.1, last_epoch=-1)
 acc0 = Accuracy(task='multiclass', num_classes=10)
 acc1 = Accuracy(task='multiclass', average='macro', num_classes=10)
 
-acc0 = set_metric_attr(acc0, name='acc0', stages='val')              # 指定指标名，并指定仅在`验证`中计算
-acc1 = set_metric_attr(acc1, name='acc1', stages=['train', 'test'])  # 指定指标在`训练`和`测试`中计算
+acc0 = metric_config(acc0, name='acc0', stages='val')              # 指定指标名，并指定仅在`验证`中计算
+acc1 = metric_config(acc1, name='acc1', stages=['train', 'test'])  # 指定指标在`训练`和`测试`中计算
 
 
 trainer = Trainer(model, F.cross_entropy, [opt, scheduler], epochs=2,

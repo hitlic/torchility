@@ -21,12 +21,12 @@ class GeneralTaskModule(LightningModule):
             self.loss_fn = loss
         else:
             self.loss_fn = dfault_loss
-            print("\033[0;34;m\n**WARNING: The default loss function is used. Make sure the model returns a loss value.\n\033[0m")
+            print("\033[0;34;m**WARNING: The default loss function is used. Make sure the model returns a loss value.\033[0m")
         if optimizer is not None:
             self.opt = optimizer
         else:
             self.opt = Adam(model.parameters(), lr=0.001)
-            print("\033[0;34;m\n**WARNING: The Adam optimizer is used with learning rate of 0.001.\n\033[0m")
+            print("\033[0;34;m**WARNING: The Adam optimizer is used with learning rate of 0.001.\033[0m")
         self.metrics = metrics
         self.messages = dict()          # 存放训练、验证、测试过程中的各种消息数据
         self.pred_dataloader_has_label = True

@@ -1,3 +1,4 @@
+import os
 from copy import deepcopy
 import torch
 import inspect
@@ -5,13 +6,13 @@ from typing import Callable, Union
 from pytorch_lightning import Trainer as PLTrainer
 from pytorch_lightning import LightningModule
 from pytorch_lightning.loggers import TensorBoardLogger
-from pytorch_lightning.callbacks import ProgressBar
+from pytorch_lightning.callbacks import ProgressBar, ModelCheckpoint
 
 from torchmetrics import Metric
 
 from .callbacks import ResetMetrics, SimpleBar
 from .tasks import GeneralTaskModule
-from .callbacks import Progress
+from .callbacks import Progress, LogHyperParameters
 from .utils import batches, set_metric_attr, load_state_dict
 from .datamodule import GeneralDataModule
 
@@ -34,6 +35,7 @@ class Trainer(PLTrainer):
         reset_dl:int=0,                             # 每隔多少个epoch重置一次训练DataLoader，与reload_dataloaders_every_n_epochs相似
         val_freq=1,                                 # 每隔多少个epoch验证一次，与check_val_every_n_epoch相同
         long_output=False,                          # 进度输出中保留7位（True）还是4位（False）小数。
+        hyper_parameters=None,                      # 需要被日志记录的超参数（用于调参）
         task_kwargs:dict=None,                      # parameters dict of the task_module
         **pltrainer_kwargs                          # keyword arguments of pytorch_lightning Trainer
         ):
@@ -74,6 +76,21 @@ class Trainer(PLTrainer):
                 cbks.append(Progress())
             if not any(isinstance(cbk, ProgressBar) for cbk in cbks):
                 cbks.append(SimpleBar(long_output))  # ResetMetrics must stay before SimpleBar
+
+        # log hyperparemeters
+        if hyper_parameters is not None:
+            if not isinstance(hyper_parameters, dict):
+                raise ValueError('`hyper_parameters` must be a dict!')
+            cbks.append(LogHyperParameters(hyper_parameters))
+
+        # checkpoint
+        self._checkpoint = None
+        enable_cpk = self.init_params['enable_checkpointing']
+        if enable_cpk is None or enable_cpk:
+            if not any(isinstance(cbk, ModelCheckpoint) for cbk in cbks):
+                self._checkpoint = ModelCheckpoint()
+                cbks.append(self._checkpoint)
+
         self.init_params['callbacks'] = cbks
 
         # === default logger
@@ -118,6 +135,10 @@ class Trainer(PLTrainer):
                          int 表示在使用多个验证dataloader时，在哪个dataloader上计算损失
                          [int, ...]整数列表，表示在在哪些dataloader上计算损失
         """
+        # 如果有验证集且modelcheckpoint没有指定monitor，则以val_loss为monitor
+        if val_dls is not None and self._checkpoint and self._checkpoint.monitor is None:
+            self._checkpoint.monitor = 'val_loss'
+
         if isinstance(do_val_loss, (list, tuple)):
             assert isinstance(val_dls, (list, tuple)), 'do_val_loss 的取值为val_dls中dataloader对应的id'
             assert len(do_val_loss) < len(val_dls), 'do_val_loss 的取值为val_dls中dataloader对应的id'
@@ -143,6 +164,10 @@ class Trainer(PLTrainer):
                      [int, ...]整数列表示在使用多个测试dataloader时，在哪些dataloader上计算损失
         """
         print('-' * 35)
+        if self.init_params['enable_checkpointing'] == False:  # 当没有checkpoint时
+            print("NOTICE: Using the latest model for Test!")
+            ckpt_path = None
+
         if isinstance(do_loss, (list, tuple)):
             assert isinstance(test_dls, (list, tuple)), 'do_loss 的取值为test_dls中dataloader对应的id'
             assert len(do_loss) < len(test_dls), 'do_loss 的取值为test_dls中dataloader对应的id'
@@ -281,3 +306,12 @@ class Trainer(PLTrainer):
             ckpt_path: path of pytorch_lightning checkpoint
         """
         return load_state_dict(model, ckpt_path)
+
+    def run_tensorboard(self, logdir=None):
+        if logdir is None:
+            if self.logger is None:
+                logdir = os.path.dirname(os.path.realpath(__file__))
+            else:
+                logdir = self.log_dir.rsplit('/', 1)[0]
+        print(f'logdir is {logdir}')
+        os.system(f'tensorboard --logdir={logdir}')

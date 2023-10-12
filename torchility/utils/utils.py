@@ -245,3 +245,15 @@ def groupby_apply(values: torch.Tensor, keys: torch.Tensor, reduction: str = "me
     _, counts = keys.unique(return_counts=True)
     reduced = torch.stack([reduce(item, dim=0) for item in torch.split_with_sizes(values, tuple(counts))])
     return reduced
+
+
+def flatten_dict(d, parent_key='', sep='.'):
+    """flatten a dict with dict as values"""
+    items = []
+    for k, v in d.items():
+        new_key = f'{parent_key}{sep}{k}' if parent_key else k
+        if isinstance(v, dict):
+            items.extend(flatten_dict(v, new_key, sep).items())
+        else:
+            items.append((new_key, v))
+    return dict(items)
