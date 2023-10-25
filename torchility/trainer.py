@@ -83,14 +83,6 @@ class Trainer(PLTrainer):
                 raise ValueError('`hyper_parameters` must be a dict!')
             cbks.append(LogHyperParameters(hyper_parameters))
 
-        # checkpoint
-        self._checkpoint = None
-        enable_cpk = self.init_params['enable_checkpointing']
-        if enable_cpk is None or enable_cpk:
-            if not any(isinstance(cbk, ModelCheckpoint) for cbk in cbks):
-                self._checkpoint = ModelCheckpoint()
-                cbks.append(self._checkpoint)
-
         self.init_params['callbacks'] = cbks
 
         # === default logger
@@ -135,10 +127,6 @@ class Trainer(PLTrainer):
                          int 表示在使用多个验证dataloader时，在哪个dataloader上计算损失
                          [int, ...]整数列表，表示在在哪些dataloader上计算损失
         """
-        # 如果有验证集且modelcheckpoint没有指定monitor，则以val_loss为monitor
-        if val_dls is not None and self._checkpoint and self._checkpoint.monitor is None:
-            self._checkpoint.monitor = 'val_loss'
-
         if isinstance(do_val_loss, (list, tuple)):
             assert isinstance(val_dls, (list, tuple)), 'do_val_loss 的取值为val_dls中dataloader对应的id'
             assert len(do_val_loss) < len(val_dls), 'do_val_loss 的取值为val_dls中dataloader对应的id'

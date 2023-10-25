@@ -69,6 +69,5 @@ trainer.test(test_dl)
 
 ### Data Flow
 
-<img src="imgs/data_flow.png" width="60%"/>
-
+<img src="imgs/data_flow.png" width="60%" alt="https://github.com/hitlic/torchility"/>
 

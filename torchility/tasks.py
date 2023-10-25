@@ -21,7 +21,7 @@ class GeneralTaskModule(LightningModule):
             self.loss_fn = loss
         else:
             self.loss_fn = dfault_loss
-            print("\033[0;34;m**WARNING: The default loss function is used. Make sure the model returns a loss value.\033[0m")
+            print("\033[0;34;m**WARNING: The default loss function for Trainer is used. Make sure the model returns a loss value.\033[0m")
         if optimizer is not None:
             self.opt = optimizer
         else:
